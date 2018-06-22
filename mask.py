@@ -3,7 +3,7 @@ import os.path
 import re
 
 
-# Generates a random set of n nodes.
+# Generates a random set of n nodes
 def randomMask(total_nodes, n):
 	if n > total_nodes:
 		print('Cannot sample more values than existing nodes')
