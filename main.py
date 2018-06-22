@@ -3,7 +3,7 @@ from ristretto.mf import rsvd
 from mask import randomMask
 from mask import readNodes
 from reduced_order import matrixReconstruction
-from reduced_order import matrixReconstructionWithVelocity
+from reduced_order import multivariableMatrixReconstruction
 from writetoVtk import writetoVtk
 import numpy as np 
 import scipy as sci
@@ -13,7 +13,7 @@ import os.path
 import re
 from mapping import vtk_mapping
 from mapping import node_mapping
-from preprocessing import preprocessingInputs
+from mapping import preprocessingInputs
 
 if __name__ == '__main__':
 	
@@ -57,48 +57,47 @@ if __name__ == '__main__':
 	vtk_in_folder = 'Visualization/VTK_IN/'
 	vtk_out_folder = 'Visualization/VTK_OUT/'
 	problem_name = 'Bumper'
-	selected_node_data = 'Bumper_Data.npz'
+	simplified_data_name = 'Bumper_Data.npz'
 	vtk_in_directory = os.path.join(main_directory_path, vtk_in_folder) + problem_name + '/'
 	vtk_out_directory = os.path.join(main_directory_path, vtk_out_folder)  + problem_name + '/'
 
 	# TODO: Add some form of options when running program.
 
-	nodes, selected_nodes_indices, Coordinates, Displacements = preprocessingInputs(dyna_input_name, selected_node_data)
+	# Coordinates, Displacements, AngularVelocities = binout_reading(dyna_input_name, False, 'coordinates + displacements + rvelocities')
+	# Coordinates = small_func.rearange_xyz(Coordinates)
+	# Displacements = small_func.rearange_xyz(Displacements)
+	# AngularVelocities = small_func.rearange_xyz(AngularVelocities)
 
-	print(nodes.shape)
-	print(selected_nodes_indices.shape)
+	print("Pulling data from simplified model")
 
-	# Displacements, Coordinates, Velocities = binout_reading(dyna_input_name, True, 'coordinates + displacements + velocities')
-	Coordinates, Displacements = binout_reading(dyna_input_name, False, 'coordinates + displacements')
-
+	simplified_variables, simplified_nodes_indices, moving_variables, moving_nodes_indices, Coordinates = preprocessingInputs(dyna_input_name, simplified_data_name)
+	simplified_nodes = np.concatenate((simplified_variables[0], simplified_variables[1], simplified_variables[2]), axis = 0)
+	moving_displacements = moving_variables[0]
+	moving_coordinates =  moving_variables[1]
+	moving_angular_velocities =  moving_variables[2]
 	# read in snapshot/node parameters
-	total_nodes = Displacements.shape[0]//3
-	total_snapshot = Displacements.shape[1]
+	total_nodes = moving_displacements.shape[0]//3
+	total_snapshot = moving_displacements.shape[1]
 	
-
 	# TODO: Somehow streamline this process (Does this take too long? How do we improve this?)
 	# Called to perform mapping of Binout data to vtk style for visualisation. Variable mapping_name is the name of the npy storing the
 	# mapping from Binout data to LS-DYNA data.
 	# mapping_name = mapping(A, vtk_in_directory, vtk_name, total_nodes, snapshot=1)
 
-	# Manually created mapping folder:
-	mapping_name = "extended_mapBumper.npy"
-
 
 ##################### Perform rSVD ###########################################################################################
 	
-
-	# snapshots in Binout data (column indices) chosen for reconstruction (ie. how many times t to be reconstructed)
+	# # snapshots in Binout data (column indices) chosen for reconstruction (ie. how many times t to be reconstructed)
 	snapshot_selection = range(0,total_snapshot)
 
-	# nodes in Binout data (row indices) for reconstruction (ie. how many nodes used for reconstruction)
+	# # nodes in Binout data (row indices) for reconstruction (ie. how many nodes used for reconstruction)
 
 	# node selected based on NodeID present in the LS-DYNA mapping data
-	# selected_nodes_indices = readNodes(nodes, total_nodes, k_input_path)
+	# simplified_nodes_indices = readNodes(nodes, total_nodes, k_input_path)
 
 	# generate random set of nodes for testing purposes
-	# random_set = randomMask(total_nodes,300)
-	selected_nodes_indices = range(0,total_nodes)
+	# random_set = randomMask(total_nodes, 600)
+	# simplified_nodes_indices = random_set
 
 	# TODO: create an interface for this
 	# Manually input name of stored selected node data
@@ -107,22 +106,28 @@ if __name__ == '__main__':
 
 	ref = Coordinates[:,0].reshape((Coordinates.shape[0],1))
 	# Parameters for SDV. Note that required parameters will change depending on the type of SVD performed
-	params = [200, 4, 40]
+	params = [20, 40, 40]
 
-	# Reconstruct displacement matrix. See reduced_basis.py for more information
-	error_r, Displacements_r = matrixReconstruction(Displacements, snapshot_selection, selected_nodes_indices, reducedOrderParams=params, isError=True, nodes=nodes)	
+	print(moving_displacements.shape, Coordinates.shape, simplified_nodes.shape)
+	Variables = (moving_displacements, moving_coordinates, moving_angular_velocities)
+
+	# # Reconstruct displacement matrix. See reduced_basis.py for more information
+	print("Reconstructing the matrix using SVD vectors")
+	error_r, Displacements_r = multivariableMatrixReconstruction(Variables, snapshot_selection, simplified_nodes_indices, reducedOrderParams=params, isError=True, isInput=True, nodes=simplified_nodes)	
 
 	# Reconstruct displacement matrix. See reduced_basis.py for more information
 	# error_r, Displacements_r, Velocities_r = matrixReconstructionWithVelocity(Displacements, Velocities, snapshot_selection, selected_nodes_indices, isError=True)	
 
 	# Adding the original coordinates to the reconstructed displacements vector.
-	Displacements_r = Displacements_r + ref
+	Displacements_full = np.zeros(Coordinates.shape)
+	Displacements_full[moving_nodes_indices, :] = Displacements_r
+	Coordinates_r = Displacements_full + ref
 
 
 ######################    Printing VTK to Output #############################################################################
 
-is_static_nodes = True
+is_static_nodes = False
 cell_per_row = 3
 
-writetoVtk(Displacements_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_directory, vtk_name, cell_per_row, is_static_nodes, isError=True, error_r = error_r)
+writetoVtk(Coordinates_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_directory, problem_name, cell_per_row, is_static_nodes, isError=False, error_r = None)
 

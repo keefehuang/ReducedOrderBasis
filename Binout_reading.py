@@ -48,6 +48,40 @@ the snapshot indexes.
         Snap = np.transpose(binout.read("nodout", var_t))
         return Snap
 
+    if data_type=='coordinates + displacements + rvelocities':
+
+            Snap1=np.vstack(
+                (
+                    np.transpose(binout.read("nodout",var_cor[0])),
+                    np.transpose(binout.read("nodout",var_cor[1])),
+                    np.transpose(binout.read("nodout",var_cor[2]))
+                )
+            )      
+            Snap2=np.vstack(
+                (
+                np.transpose(binout.read("nodout",var_displ[0])),
+                np.transpose(binout.read("nodout",var_displ[1])),
+                np.transpose(binout.read("nodout",var_displ[2]))
+                )
+            )
+            Snap3=np.vstack(
+                (
+                np.transpose(binout.read("nodout",var_vel[3])),
+                np.transpose(binout.read("nodout",var_vel[4])),
+                np.transpose(binout.read("nodout",var_vel[5]))
+                )
+            )
+            if normalize==True:
+                for i in range(0,Snap1.shape[1]):
+            
+                    if np.linalg.norm(Snap1[:,i])!=0:
+
+                        Snap1[:,i]=Snap1[:,i]/np.linalg.norm(Snap1[:,i])
+                        Snap2[:,i]=Snap2[:,i]/np.linalg.norm(Snap1[:,i])
+                        Snap3[:,i]=Snap3[:,i]/np.linalg.norm(Snap1[:,i])
+            return Snap1, Snap2, Snap3
+ 
+
     if data_type=='coordinates + displacements + velocities':
 
             Snap1=np.vstack(

@@ -3,7 +3,7 @@ import os.path
 import re
 
 
-# Generates a random set of n nodes
+# Generates a random set of n nodes.
 def randomMask(total_nodes, n):
 	if n > total_nodes:
 		print('Cannot sample more values than existing nodes')
@@ -19,7 +19,6 @@ def randomMask(total_nodes, n):
 
 # Takes in a set of nodes selected from the LS-DYNA model. Maps the selected nodes to the rows in the Binout data using Node IDs
 # in the ls-dyna .key file
-# TODO: Check if the mapping works!
 def readNodes(node_selection, total_nodes, k_input_name=None):
 	node_selection = set(node_selection)
 	if max(node_selection) >= total_nodes or min(node_selection) < 0:

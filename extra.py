@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
 	Movement = np.zeros((Displacements.shape[0],))
 	for snapshot in range(1,Displacements.shape[1]):
-		Movement += np.abs(Displacements[:,snapshot] - Displacements[:, snapshot-1])
+		Movement += np.abs(Coordinates[:,snapshot] - Coordinates[:, snapshot-1])
 
 	print(Displacements.shape)
 	print(Coordinates.shape)

@@ -15,7 +15,11 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 	referenceVariableEnd = "Velocity"
 	metaDataStart = "CELLS"
 	index_map = np.load('extended_mapBumper.npy')
-	numStaticNodes = None
+	vtk_nodes = index_map.shape[0]
+	if isStaticNodes:
+		numStaticNodes = 4
+	else:
+		numStaticNodes = 0
 	dimensions = 3
 	# determines location of reference
 	ref_vtk_in = vtk_in_directory + vtk_name + '_1.vtk'
@@ -33,7 +37,7 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 		pre_section = bodyText[:uv_start] + "\n"
 		mid_section = bodyText[uv_end:rv_start] + "\n"
 		post_section = bodyText[rv_end:]
-		if(numStaticNodes):
+		if isStaticNodes:
 			staticNodesAppend = " ".join(bodyText[rv_start:rv_end].split(" ")[-(numStaticNodes*dimensions+1):-1])
 
 	# loop through all timesteps
@@ -45,12 +49,14 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 		# vtk_in_name = vtk_in_directory + problem_in + '.vtk'
 		vtk_out_name = vtk_out_directory + problem_out + '.vtk'		
 
-		updatedVariables = ""
-		errorVariable = ""
-		for i,node in enumerate(index_map):
-			updatedVariables = updatedVariables + " " + str(x[node])
-			if((i+1)%(cellPerRow*dimensions) == 0):
-				updatedVariables = updatedVariables + "\n"
+		x = x[index_map]
+		reshaped_x = x[:vtk_nodes-vtk_nodes%9].reshape(((vtk_nodes-vtk_nodes%9)//9,9))
+		updatedVariables = "\n".join([" ".join(map(str,line)) for line in reshaped_x]) + "\n"
+
+		for variable in x[vtk_nodes-vtk_nodes%9:]:
+			updatedVariables = updatedVariables + " " + str(variable)
+
+		updatedVariables = updatedVariables + "\n"
 
 		if isError:
 			# errorHeader = "POINT_DATA " + str(int(len(index_map)/3 + numStaticNodes)) + "\n\nVECTORS Error float " + str(int(len(index_map)/3 + numStaticNodes)) + "\nLOOKUP_TABLE default \n"
@@ -58,20 +64,20 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 			errorVariable = ""
 			error_x = error_r[: , snapshot]
 
-			for i,node in enumerate(index_map):
-				errorVariable = errorVariable + " " + str(error_x[node])
-				if((i+1)%(cellPerRow*dimensions) == 0):
-					errorVariable = errorVariable + "\n"
+			error_x = error_x[:vtk_nodes-vtk_nodes%9].reshape(((vtk_nodes-vtk_nodes%9)//9,9))
+			errorVariable = "\n".join([" ".join(map(str,line)) for line in error_x]) + "\n"
 
-			for i in range(len(index_map), len(index_map)+numStaticNodes*dimensions):
-				errorVariable = errorVariable + " 0"
-				if (i+1)%(cellPerRow*dimensions) == 0:
-					errorVariable = errorVariable + "\n"
-			# for node in range(numStaticNodes):
-			# 	errorVariable = errorVariable + "0 0 0\n"
-			# errorVariable = errorVariable + "\n"
+			for variable in error_r[vtk_nodes-vtk_nodes%9:]:
+				errorVariable = errorVariable + " " + str(variable)
 
-		updatedVariables = updatedVariables + " " + staticNodesAppend + "\n"
+			if isStaticNodes:
+				for i in range(len(index_map), len(index_map)+numStaticNodes*dimensions):
+					errorVariable = errorVariable + " 0"
+					if (i+1)%(cellPerRow*dimensions) == 0:
+						errorVariable = errorVariable + "\n"
+
+		if isStaticNodes:
+			updatedVariables = updatedVariables + " " + staticNodesAppend + "\n"
 		
 		# # write to output file at output location
 		with open(vtk_out_name, 'w', encoding='utf-8') as vtk_out:

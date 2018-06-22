@@ -10,6 +10,7 @@ import glob
 import os.path
 import re
 
+# This program is mainly to read abaqus output and store it in readable arrays similar to that from Binout data.
 if __name__ == '__main__':
 	points = 41
 	timesteps = 202
