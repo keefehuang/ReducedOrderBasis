@@ -4,7 +4,7 @@ import os.path
 import numpy as np
 
 
-def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_directory, vtk_name, cellPerRow, isStaticNodes, isError=False, error_r=None):
+def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_directory, vtk_name, cellPerRow, isStaticNodes, mapping_name, isError=False, error_r=None):
 
 	# ensure output folder is created
 	if not os.path.exists(vtk_out_directory):
@@ -14,7 +14,7 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 	referenceVariableStart = "Deflection"
 	referenceVariableEnd = "Velocity"
 	metaDataStart = "CELLS"
-	index_map = np.load('extended_mapBumper.npy')
+	index_map = np.load(mapping_name)
 	vtk_nodes = index_map.shape[0]
 	if isStaticNodes:
 		numStaticNodes = 4
@@ -63,11 +63,12 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 			errorHeader = "\n FIELD FieldData 1 \n\n Error " + str(dimensions) + " " + str(int(len(index_map)/3 + numStaticNodes)) + " float " +  "\n"
 			errorVariable = ""
 			error_x = error_r[: , snapshot]
+			error_x = error_x[index_map]
 
-			error_x = error_x[:vtk_nodes-vtk_nodes%9].reshape(((vtk_nodes-vtk_nodes%9)//9,9))
-			errorVariable = "\n".join([" ".join(map(str,line)) for line in error_x]) + "\n"
+			reshaped_error = error_x[:vtk_nodes-vtk_nodes%9].reshape(((vtk_nodes-vtk_nodes%9)//9,9))
+			errorVariable = "\n".join([" ".join(map(str,line)) for line in reshaped_error]) + "\n"
 
-			for variable in error_r[vtk_nodes-vtk_nodes%9:]:
+			for variable in error_x[vtk_nodes-vtk_nodes%9:]:
 				errorVariable = errorVariable + " " + str(variable)
 
 			if isStaticNodes:

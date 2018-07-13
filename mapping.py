@@ -14,10 +14,7 @@ def res(node1, node2):
 	return np.linalg.norm(node1 - node2)
 
 # Creates an array that maps from Binout data to VTK visualisation data
-# TODO: somehow dynamically determine the number of VTK datas (probably via some regex)
 def vtk_mapping(A, vtk_in_directory, vtk_name, no_binout_nodes, snapshot=1):
-	# Total number of nodes 
-	no_vtk_nodes = 51391
 	no_total_snapshots = A.shape[1]
 
 	binout_state = np.reshape(np.array(A[:,snapshot]), (no_binout_nodes,3))
@@ -31,14 +28,14 @@ def vtk_mapping(A, vtk_in_directory, vtk_name, no_binout_nodes, snapshot=1):
 		uv_start 			= 		bodyText.index(updated_variable_name)
 		uv_end 				= 		bodyText.index(next_variable_name)
 		vtk_state			= 		np.reshape(np.array(list(map(float, bodyText[uv_start + (bodyText[uv_start:].index('\n')):uv_end].strip().split(" ") ))), (no_vtk_nodes,3))
-
+		no_vtk_nodes 		=		int(bodyText[uv_start:bodyText[uv_start:].index('\n')].split(" ")[1])
+	
 	round_binout_state = np.round(binout_state,decimals=3)
 	round_vtk_state = np.round(vtk_state,decimals=3)
 	index_map = []
 
 	ind_vtk = np.lexsort((round_vtk_state[:,0], round_vtk_state[:,1], round_vtk_state[:,2]))
 	ind_binout = np.lexsort((round_binout_state[:,0], round_binout_state[:,1], round_binout_state[:,2]))
-
 
 	sorted_vtk = round_vtk_state[ind_vtk,:]
 	sorted_binout = round_binout_state[ind_binout,:]	
@@ -86,7 +83,7 @@ def vtk_mapping(A, vtk_in_directory, vtk_name, no_binout_nodes, snapshot=1):
 	return 'extended_map' + vtk_name
 
 # maps the selected node data to the Binout data. returns the selected node data and the mapping as an array
-def node_mapping(binout_coordinates, simplified_coordinates, simplified_displacements, snapshot = 0, normalize=True):
+def node_mapping(binout_coordinates, simplified_coordinates, snapshot = 0, normalize=True):
 
 	num_binout_nodes = binout_coordinates.shape[0]//3
 	num_simplified_nodes = simplified_coordinates.shape[0]//3
@@ -110,17 +107,18 @@ def node_mapping(binout_coordinates, simplified_coordinates, simplified_displace
 	# first sweep to identify entries that are directly mapped (ie. no averaging was done)
 	index_map = []
 	simplified_map = []
-	mapping_error = []
-	residuals = queue.PriorityQueue(maxsize=3)
+	mapping_error = []	
+	linkedNodes = 1000
+	maxsize = linkedNodes + 2
+	residuals = queue.PriorityQueue(maxsize=maxsize)
 	error = 1e-2
 	for i, node in enumerate(sorted_simplified_nodes):
-		print("Working on simplfied node {}".format(i))
-		count = 2
-		init_residual1 = res(sorted_reference_nodes[0], node)
-		init_residual2 = res(sorted_reference_nodes[1], node)
-		residuals.put((-init_residual1, 0))
-		residuals.put((-init_residual2, 1))
-		residual = init_residual1
+		print("Mapping simplified node {}".format(i))
+		count = linkedNodes
+		for n in range(linkedNodes):
+			init_residual = res(sorted_reference_nodes[n], node)
+			residuals.put((-init_residual, n))
+		residual = init_residual
 		while residual > error and count < num_binout_nodes:
 			residual = res(sorted_reference_nodes[count], node)
 			residuals.put((-residual, count))
@@ -128,46 +126,88 @@ def node_mapping(binout_coordinates, simplified_coordinates, simplified_displace
 			count += 1
 
 		if (count >= num_binout_nodes):
-			res1 = residuals.get()
-			res2 = residuals.get()
-			if res1[1] in index_map:
-				loc1 = index_map.index(res1[1])
-				if -res1[0] < mapping_error[loc1]:
-					del index_map[loc1]
-					del mapping_error[loc1]
-					del simplified_map[loc1]
-					index_map.append(res1[1])
-					mapping_error.append(-res1[0])
+			for n in range(linkedNodes):
+				final_residual = residuals.get()
+				if final_residual[1] in index_map:
+					loc = index_map.index(final_residual[1])
+					if -final_residual[0] < mapping_error[loc]:
+						del index_map[loc]
+						del mapping_error[loc]
+						del simplified_map[loc]
+						index_map.append(final_residual[1])
+						mapping_error.append(-final_residual[0])
+						simplified_map.append(i)
+				else:
+					index_map.append(final_residual[1])
+					mapping_error.append(-final_residual[0])
 					simplified_map.append(i)
-			else:
-				index_map.append(res1[1])
-				mapping_error.append(-res1[0])
-				simplified_map.append(i)
-
-			if res2[1] in index_map:
-				loc2 = index_map.index(res2[1])
-				if -res2[0] < mapping_error[loc2]:
-					del index_map[loc2]
-					del mapping_error[loc2]
-					del simplified_map[loc2]
-					index_map.append(res2[1])
-					mapping_error.append(-res2[0])
-					simplified_map.append(i)
-			else:
-				index_map.append(res2[1])
-				mapping_error.append(-res2[0])
-				simplified_map.append(i)
-
-			# print("Found nodes at {} and {}".format(index_map[-1], index_map[-2]))
 		elif(count != 0):
 			simplified_map.append(i)
 			index_map.append(count-1)
 			mapping_error.append(0)
-			residuals.get()
-			residuals.get()
+			for n in range(linkedNodes):
+				residuals.get()
+
+
+			# res1 = residuals.get()
+			# res2 = residuals.get()
+			# res3 = residuals.get()
+
+			# if res1[1] in index_map:
+			# 	loc1 = index_map.index(res1[1])
+			# 	if -res1[0] < mapping_error[loc1]:
+			# 		del index_map[loc1]
+			# 		del mapping_error[loc1]
+			# 		del simplified_map[loc1]
+			# 		index_map.append(res1[1])
+			# 		mapping_error.append(-res1[0])
+			# 		simplified_map.append(i)
+			# else:
+			# 	index_map.append(res1[1])
+			# 	mapping_error.append(-res1[0])
+			# 	simplified_map.append(i)
+
+			# if res2[1] in index_map:
+			# 	loc2 = index_map.index(res2[1])
+			# 	if -res2[0] < mapping_error[loc2]:
+			# 		del index_map[loc2]
+			# 		del mapping_error[loc2]
+			# 		del simplified_map[loc2]
+			# 		index_map.append(res2[1])
+			# 		mapping_error.append(-res2[0])
+			# 		simplified_map.append(i)
+			# else:
+			# 	index_map.append(res2[1])
+			# 	mapping_error.append(-res2[0])
+			# 	simplified_map.append(i)
+
+			# if res3[1] in index_map:
+			# 	loc3 = index_map.index(res3[1])
+			# 	if -res3[0] < mapping_error[loc3]:
+			# 		del index_map[loc3]
+			# 		del mapping_error[loc3]
+			# 		del simplified_map[loc3]
+			# 		index_map.append(res3[1])
+			# 		mapping_error.append(-res3[0])
+			# 		simplified_map.append(i)
+			# else:
+			# 	index_map.append(res3[1])
+			# 	mapping_error.append(-res3[0])
+			# 	simplified_map.append(i)
+
+
+			# print("Found nodes at {} and {}".format(index_map[-1], index_map[-2]))
+		# elif(count != 0):
+		# 	simplified_map.append(i)
+		# 	index_map.append(count-1)
+		# 	mapping_error.append(0)
+		# 	residuals.get()
+		# 	residuals.get()
 			# print("Found node at {}".format(index_map[-1]))
 
 	assert np.unique(index_map).shape[0] == len(simplified_map)
+
+	print("Simplified nodes mapped to {} nodes in binout data".format(len(simplified_map)))
 
 	# second sweep to find the closest points
 
@@ -218,28 +258,52 @@ def node_mapping(binout_coordinates, simplified_coordinates, simplified_displace
 		extended_simplified_map[3*i+2] = node*3 + 2
 
 	# simplified_displacements = np.delete(simplified_displacements, extended_deleted_nodes, axis = 0)
-	simplified_displacements = simplified_displacements[extended_simplified_map,:]
-	simplified_coordinates = simplified_coordinates[extended_simplified_map,:]
 	
 	return extended_simplified_map, extended_map
 
 # Takes in the stored array data from readying.py and maps it to Binout data
-def preprocessingInputs(dyna_input_name, simplified_node_name):
+def preprocessing_input_mapping(dyna_input_name, simplified_node_name, normalize=True):
 	# read time, coordinates and displacements from simplified model
 	simplified_data = np.load(simplified_node_name)
-	simplified_timesteps = simplified_data['Time']
-	simplified_coordinates = simplified_data['Coordinates']
-	simplified_displacements = simplified_data['Displacements']
-	simplified_angular_velocities = simplified_data['AngularRotations']
+	simplified_timesteps 						= 	simplified_data['Time']
+	simplified_coordinates_not_normalized 		= 	simplified_data['Coordinates']
+	simplified_coordinates 						= 	np.copy(simplified_coordinates_not_normalized)
+	simplified_displacements 					=	simplified_data['Displacements']
+	simplified_angular_velocities 				=	simplified_data['AngularRotations']
 
 	# reads time, coordinates and displacements from Binout (ie. full model)
 	binout_coordinates, binout_displacements, binout_angular_velocities = binout_reading(dyna_input_name, False, 'coordinates + displacements + rvelocities')
 	binout_timesteps = binout_reading(dyna_input_name, False, 'time')
 
 	# small_func rearranges the output matrix A to follow an x-y-z arrangement along index 0
-	binout_displacements = small_func.rearange_xyz(binout_displacements)
-	binout_coordinates = small_func.rearange_xyz(binout_coordinates)
-	binout_angular_velocities = small_func.rearange_xyz(binout_angular_velocities)
+	binout_displacements 						= small_func.rearange_xyz(binout_displacements)
+	binout_coordinates_not_normalized 			= small_func.rearange_xyz(binout_coordinates)
+	binout_coordinates 							= np.copy(binout_coordinates_not_normalized)
+	binout_angular_velocities 					= small_func.rearange_xyz(binout_angular_velocities)
+
+	# the timesteps of the data from the simplified simulation may not match the timesteps in the binout. This removes all timesteps from
+	# the binout data that do not correspond to any simplified data
+	time_error = 1e-5
+	time_indices = []
+	for time_index in simplified_timesteps:
+		# print(time_index)
+		# print(np.where(abs(binout_timesteps - time_index) < time_error ) )
+		time_indices.append(np.where(abs(binout_timesteps - time_index) < time_error)[0][0])
+
+	# relevant binout data is referred to as 'moving*'. This indicates that the data matches the timesteps in the simplified simulation
+	binout_displacements = binout_displacements[:, time_indices]
+	binout_coordinates = binout_coordinates[:, time_indices]
+	binout_angular_velocities = binout_angular_velocities[:, time_indices]
+
+	if normalize==True:
+	    for i in range(0,binout_coordinates.shape[1]):
+	        if np.linalg.norm(binout_coordinates[:,i])!=0:
+	            binout_coordinates[:,i]				=		binout_coordinates_not_normalized[:,i]/np.linalg.norm(binout_coordinates[:,i])
+	            binout_displacements[:,i]			=		binout_displacements[:,i]/np.linalg.norm(binout_coordinates[:,i])
+	            # binout_angular_velocities[:,i]		=		binout_angular_velocities[:,i]/np.linalg.norm(binout_coordinates[:,i])
+	            simplified_coordinates[:,i]			=		simplified_coordinates_not_normalized[:,i]/np.linalg.norm(binout_coordinates[:,i])
+	            simplified_displacements[:,i]		=		simplified_displacements[:,i]/np.linalg.norm(binout_coordinates[:,i])
+	            # simplified_angular_velocities[:,i]	=		simplified_angular_velocities[:,i]/np.linalg.norm(binout_coordinates[:,i])
 
 	# removes the static nodes (ie nodes that do not move) Movement array stores the displacement over time for all nodes
 	# if the displacement is > 1e-12 over the full snapshot, we consider that the node is part of the simulation. Otherwise, we remove 
@@ -254,23 +318,8 @@ def preprocessingInputs(dyna_input_name, simplified_node_name):
 	binout_moving_coordinates = binout_coordinates[binout_moving_indices,:]
 	binout_moving_angular_velocities = binout_angular_velocities[binout_moving_indices,:]
 
-	# the timesteps of the data from the simplified simulation may not match the timesteps in the binout. This removes all timesteps from
-	# the binout data that do not correspond to any simplified data
-	time_error = 1e-5
-	time_indices = []
-	for time_index in simplified_timesteps:
-		time_indices.append(np.where(abs(binout_timesteps - time_index) < time_error)[0][0])
-
-	# relevant binout data is referred to as 'moving*'. This indicates that the data matches the timesteps in the simplified simulation
-	binout_displacements = binout_displacements[:, time_indices]
-	binout_coordinates = binout_coordinates[:, time_indices]
-	binout_angular_velocities = binout_angular_velocities[:, time_indices]
-	binout_moving_displacements = binout_moving_displacements[:,time_indices]
-	binout_moving_coordinates = binout_moving_coordinates[:,time_indices]
-	binout_moving_angular_velocities = binout_moving_angular_velocities[:, time_indices]
-
 	print("Starting to map the simplified nodes to the binout nodes!")
-	simplified_map, simplified_node_indices = node_mapping(binout_moving_coordinates, simplified_coordinates, simplified_displacements)
+	simplified_map, simplified_node_indices = node_mapping(binout_coordinates_not_normalized[binout_moving_indices,:], simplified_coordinates_not_normalized)
 	print("Nodes mapped")
 
 	simplified_displacements = simplified_displacements[simplified_map,:]

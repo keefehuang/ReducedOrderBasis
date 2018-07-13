@@ -10,12 +10,31 @@ import glob
 import os.path
 import re
 
-# This program is mainly to read abaqus output and store it in readable arrays similar to that from Binout data.
-if __name__ == '__main__':
-	points = 41
-	timesteps = 202
 
-	with open("/home/keefe/Documents/BMW/HiWi/Code/ReducedOrderMapping/Data/Bumper/WS_neu_mitMPCundMasse_v9_500kg__Traegheit_3Contact_PROPS_SIMPMOD.crv", 'r', encoding='utf-8') as WS:
+def read_simplified_data(data_location, problem_name):
+	# points for bumper is 41
+	points = int(input("Number of nodes:\n"))
+	# Timesteps for bumper is 202
+	timesteps = int(input("Number of timesteps:\n"))
+	# Type of simplified data
+	data_type = input("What kind of input file are you reading?\n")
+
+	data_type = '%s*' + data_type
+
+	print(data_type	)
+
+	input_files_available			=		[os.path.basename(x) for x in glob.glob(data_type%data_location)]
+
+	print('List of input files available in folder:')
+	i = 0
+	for name in input_files_available:
+	    print('{first} = {second}'.format(first=i, second=name))
+	    i+=1
+
+	choose_input_file =  input('choose input file index = ')
+	input_path        =  os.path.join(data_location, input_files_available[int(choose_input_file)])
+
+	with open(input_path, 'r', encoding='utf-8') as WS:
 		bodyText = WS.read()
 		coords = re.compile('Title.{9,14}\[Node_PART-1-[0-9\.]+\]?\nAbs_unit TI\nOrd_unit ..\n( +[0-9\.\+e\-]+\n*){202}', re.S)
 		header = re.compile('Title.{9,14}\[Node_PART-1-[0-9\.]+\]?\nAbs_unit TI\nOrd_unit ..\n')
@@ -67,11 +86,14 @@ if __name__ == '__main__':
 			time.append(float(re.split(" +",matchAttribute.strip())[0]))
 
 		Time = np.array(time)
-
-		print(Time.shape)
 			
-	np.savez("Bumper_Data", Coordinates=Coordinates, Displacements=Displacements, AngularRotations=AngularRotations, Time = Time)
+	np.savez(problem_name + "_data", Coordinates=Coordinates, Displacements=Displacements, AngularRotations=AngularRotations, Time = Time)
 
-	datafile = np.load("Bumper_Data.npz")
-	A = datafile['Coordinates']
+	return problem_name+"_data.npz"
 
+# This program is mainly to read abaqus output and store it in readable arrays similar to that from Binout data.
+if __name__ == '__main__':
+	main_directory_path					=		os.path.dirname(os.path.realpath(__file__))
+	relative_simplified_data_path		=		'Data/Bumper/'
+	input_file_name						=		os.path.join(main_directory_path, relative_simplified_data_path)
+	read_simplified_data(input_file_name)

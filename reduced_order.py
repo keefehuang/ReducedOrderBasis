@@ -37,7 +37,7 @@ def reducedOrderApproximation(A, V, snapshot_selection, node_selection, isError=
 		if isError:
 			error_x = np.array(abs(x_r - A[: , snapshot]))
 			
-		case_error.append(  np.linalg.norm(x_r - A[: , snapshot], 2) )
+		case_error.append( np.linalg.norm(x_r - A[: , snapshot], 2) )
 		if snapshot == 0:
 			A_r = x_r
 			if isError:
@@ -99,7 +99,7 @@ def reducedOrderApproximationWithVelocity(A, V, snapshot_selection, node_selecti
 		if isError:
 			error_x = np.array(abs(x_r - A[: , snapshot]))
 			
-		case_error.append(  np.linalg.norm(x_r - A[: , snapshot], 2) )
+		case_error.append( np.divide( np.linalg.norm(x_r - A[: , snapshot], 2),  A[: , snapshot]))
 		if snapshot == 0:
 			A_r = x_r
 			if isError:
@@ -158,7 +158,7 @@ def matrixReconstructionWithVelocity(Disp, Vel, snapshot_selection, node_selecti
 	error = ([k, case_error])
 	Disp_r = A_r[:Disp.shape[0],:]
 	Vel_r = A_r[Disp.shape[0]:,:]
-	print("The mean error for the reconstructed A matrix with {} basis  is {}".format(k, np.mean(case_error)))
+	print("The mean error for the reconstructed A matrix with {} basis  is {}".format(k, np.mean(case_error)/22000))
 
 	if isError:
 		return error_r, Disp_r, Vel_r
@@ -207,6 +207,7 @@ def multivariableMatrixReconstruction(Variables, snapshot_selection, node_select
 	error_r, case_error, A_r = reducedOrderApproximation(A, V, snapshot_selection, node_selection, isError=isError)
 	error = ([k, case_error])
 	Disp_r = A_r[:Variables[0].shape[0],:]
+	error_r = error_r[:Variables[0].shape[0],:]
 	print("The mean error for the reconstructed A matrix with {} basis  is {}".format(k, np.mean(case_error)))
 
 	if isError:
