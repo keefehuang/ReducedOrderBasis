@@ -42,6 +42,11 @@ the snapshot indexes.
     var_acc=("x_acceleration","y_acceleration","z_acceleration","rx_acceleration","ry_acceleration","rz_acceleration")
     var_cor=("x_coordinate","y_coordinate","z_coordinate")
     var_t = ("time")
+    var_id = ("ids")
+
+    if data_type == 'ids':
+        Snap = np.transpose(binout.read("nodout", var_id))
+        return Snap
 
     if data_type == 'time':
         Snap = np.transpose(binout.read("nodout", var_t))

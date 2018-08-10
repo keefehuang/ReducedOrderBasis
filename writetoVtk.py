@@ -45,7 +45,7 @@ def writetoVtk(A_r, total_nodes, snapshot_selection, vtk_in_directory, vtk_out_d
 		x = A_r[:,snapshot]
 		# problem_in = vtk_name + '_' + str(snapshot)
 		problem_out = vtk_name + '_recon_' + str(snapshot)
-		print("Working on problem {}".format(snapshot))
+		print("Printing problem {}".format(snapshot))
 		# vtk_in_name = vtk_in_directory + problem_in + '.vtk'
 		vtk_out_name = vtk_out_directory + problem_out + '.vtk'		
 

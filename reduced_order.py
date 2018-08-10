@@ -1,5 +1,5 @@
 import numpy as np
-from ristretto.mf import rsvd
+import fbpca
 import numpy as np 
 
 
@@ -12,8 +12,8 @@ def powern(n):
 def singleReducedOrderApproximation(A, V, snapshot, node_selection, nodes=None, isInput=False):
 	if isInput:
 		x_tilde = nodes
-	else:
-		x_tilde = 	A[  node_selection	, snapshot 	]
+	# else:
+	# 	x_tilde = 	A[  node_selection	, snapshot 	]
 	x_real 	= 	A[  	  : 		, snapshot 	]
 	V_red 	= 	V[  node_selection 	,     :		]
 
@@ -65,7 +65,7 @@ def matrixReconstruction(A, snapshot_selection, node_selection, basisRequired=Tr
 				q = 10  # power iterations
 				k = 10 # k chosen from experimentation. 1e-5 error reached with 63 bases and ALL nodes
 			# rsvd, only reduced order basis (ROB) V is used for this method
-			U, s , Vt = rsvd( A , k=k , p=p , q=q)
+			(U, s , Vt) = fbpca.pca( A, k=k , n_iter=q)
 			V = U
 			
 		elif reducedOrderMethod == 'SVD':
@@ -141,7 +141,7 @@ def matrixReconstructionWithVelocity(Disp, Vel, snapshot_selection, node_selecti
 				k = 15 # k chosen from experimentation. 1e-5 error reached with 63 bases and ALL nodes
 			# rsvd, only reduced order basis (ROB) V is used for this method
 			
-			U, s , Vt = rsvd( A , k=k , p=p , q=q)
+			(U, s , Vt) = fbpca.pca(A, k=k , n_iter=q)
 			V = U
 			
 		elif reducedOrderMethod == 'SVD':
@@ -173,11 +173,11 @@ def multivariableMatrixReconstruction(Variables, snapshot_selection, node_select
 	num_variables = len(Variables)
 	arrayLength = len(node_selection)
 
-	A = np.concatenate((Variables[0], Variables[1]))
-	node_selection = np.concatenate((node_selection, np.add(node_selection, Variables[0].shape[0])),axis=0)
-	for num in range(2,num_variables):
+	A = Variables[0]
+	nodes_selection = node_selection
+	for num in range(1,num_variables):
 		A = np.concatenate((A, Variables[num]))	
-		node_selection = np.concatenate((node_selection, np.add(node_selection, Variables[0].shape[0])),axis=0)
+		nodes_selection = np.concatenate((nodes_selection, np.add(node_selection, Variables[0].shape[0])),axis=0)
 
 	if not V:
 		if reducedOrderMethod == 'rSVD':
@@ -191,7 +191,7 @@ def multivariableMatrixReconstruction(Variables, snapshot_selection, node_select
 				k = 15 # k chosen from experimentation. 1e-5 error reached with 63 bases and ALL nodes
 			# rsvd, only reduced order basis (ROB) V is used for this method
 			
-			U, s , Vt = rsvd( A , k=k , p=p , q=q)
+			(U, s , Vt) = fbpca.pca( A , k=k , n_iter=4)
 			V = U
 			
 		elif reducedOrderMethod == 'SVD':
@@ -203,8 +203,10 @@ def multivariableMatrixReconstruction(Variables, snapshot_selection, node_select
 		else:
 			print("ERROR: No valid reduced order method provided!")
 			return
+
+	print('SVD calculation Completed')
 	
-	error_r, case_error, A_r = reducedOrderApproximation(A, V, snapshot_selection, node_selection, isError=isError)
+	error_r, case_error, A_r = reducedOrderApproximation(A, V, snapshot_selection, nodes_selection, isError=isError, nodes=nodes, isInput=isInput)
 	error = ([k, case_error])
 	Disp_r = A_r[:Variables[0].shape[0],:]
 	error_r = error_r[:Variables[0].shape[0],:]
