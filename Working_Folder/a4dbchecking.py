@@ -3,8 +3,6 @@ import numpy as np
 from Binout_reading import *
 from small_func import *
 
-# 6 - x
-
 
 def main():
 	a4db_name 		= 	"./input_data/SFS_MAIN_Full_Model.a4db"

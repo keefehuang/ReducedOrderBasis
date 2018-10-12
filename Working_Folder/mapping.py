@@ -14,12 +14,30 @@ import copy
 import importlib
 import pyprind
 
+def simple_average(tracking_points, weights):
+	summed_points = None
+	for point in range(tracking_points.shape[0]//3):
+		if summed_points is None:
+			summed_points = tracking_points[[point*3, point*3+1, point*3+2], :]
+		else:
+			summed_points += tracking_points[[point*3, point*3+1, point*3+2], :]
+	return summed_points/(tracking_points.shape[0]/3)
+
+def weighted_average(tracking_points, weights):
+	summed_points = None
+	for i, point in enumerate(range(tracking_points.shape[0]//3)):
+		if summed_points is None:
+			summed_points = weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
+		else:
+			summed_points += weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
+	return np.array(summed_points/(tracking_points.shape[0]/3))
+
 # function to calculate 2-norm difference of two nodes
 def res(node1, node2):
 	return np.linalg.norm(node1 - node2)
 
 # Creates an array that maps from lsdyna data to VTK visualisation data
-def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_num):
+def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_num ):
 	full_data_state = np.reshape(np.array(full_data_state), (-1,3))
 
 	# Start of the node location data
@@ -107,23 +125,31 @@ def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_nu
 		extended_map[3*i+1] = node*3 + 1
 		extended_map[3*i+2] = node*3 + 2	
 
-	mapping_save_file		= os.path.join(mapping_directory[:-4] + "_mapping.npy")
+	mapping_save_file		= "./mapping.npy"
 	np.save(mapping_save_file, extended_map)	
 	print("Mapping file saved to " + mapping_save_file)
 	static_nodes_save_file = None
 	if static_nodes is not None:
-		static_nodes_save_file 	= os.path.join(mapping_directory[:-4] + "_static_nodes.npy")
+		static_nodes_save_file 	= "static_nodes.npy"
 		np.save(static_nodes_save_file, static_nodes)	
 		print("Static nodes saved to " + static_nodes_save_file)
 	return mapping_save_file, static_nodes_save_file
 
+def default_function(tracking_points):
+	summed_points = None
+	for point in range(tracking_points.shape[0]//3):
+		if summed_points is None:
+			summed_points = tracking_points[[point*3, point*3+1, point*3+2], :]
+		else:
+			summed_points += tracking_points[[point*3, point*3+1, point*3+2], :]
+	return summed_points/(tracking_points.shape[0]/3)
+
+def run_function(func, tracking_points, weights):
+	return func(tracking_points, weights)
+
 ### Generates and concatenates new basis vectors using the tracking node ids
-def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, functions):	
-	if functions is not None:
-		functions_import = importlib.import_module(functions[:-3])
-		functions = functions_import.functions
-	else:
-		functions_import = None
+def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, functions=None):	
+	
 	tracking_node_indices = []
 	node_height = full_data.shape[0]
 	tracking_point_nodes = np.array(tracking_point_nodes)
@@ -140,14 +166,11 @@ def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, f
 					node_data = full_data[node_ids,:]
 				else:	
 					node_data = np.concatenate((node_data, full_data[node_ids,:]))
-				# Addition (perhaps change with custom function)
-				# node_data = node_data + full_data[node_ids,:]	
 
-			full_data = np.concatenate((full_data, functions_import.run_function(functions[num][0], node_data, functions[num][1])))
-
-			# Division (perhaps change with custom function)		
-			# node_data 			= node_data/np.array(tracking_point_nodes[num]).shape[0]
-			# full_data 			= np.concatenate((full_data, node_data))
+			if functions is not None:
+				full_data = np.concatenate((full_data, run_function(functions[num][0], node_data, functions[num][1])))
+			else:
+				full_data = np.concatenate((full_data, default_function(node_data)))
 			  
 			tracking_node_indices.append(node_height)
 			tracking_node_indices.append(node_height + 1)
@@ -161,11 +184,19 @@ def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, f
 	print("Mapping Complete")
 	return full_data, tracking_node_indices
 
-def time_mapping(time_data, simplified_time_data):
+def time_mapping(displacement_data, time_data, simplified_displacement_data, simplified_time_data, simplified_velocity_data):
 	time_error = 1e-2
 	time_indices = []
-	for time_index in simplified_time_data:
-		time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
+	if displacement_data.shape[1] >= simplified_displacement_data.shape[1]:
+		for time_index in simplified_time_data:
+			time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
+		displacement_data = displacement_data[:,time_indices]	
+	else:
+		for time_index in time_data:
+			time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
+		simplified_displacement_data = simplified_displacement_data[:,time_indices]	
+		if simplified_velocity_data is not None:
+			simplified_velocity_data = simplified_velocity_data[:, time_indices]
 
-	return time_indices
+	return displacement_data, simplified_displacement_data, simplified_velocity_data
 		

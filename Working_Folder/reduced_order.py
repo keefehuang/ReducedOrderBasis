@@ -4,6 +4,8 @@ import numpy as np
 from scipy.optimize import least_squares
 import pyprind
 
+scalingfactor = 0.01;
+
 time = 0.01
 def powern(n):
 	num = 2
@@ -20,8 +22,7 @@ def least_squares_approximation(V, V_simplified, rhs_simplified):
 	return rhs_reconstructed
 
 def cost_function(x, rhs_old, rhs_simplified, velocity_simplified, V, V_simplified, timestep):
-
-	return V_simplified*x - x_simplified + (rhs_old - V_simplified*x)/timestep - velocity_simplified
+	return np.matmul(V_simplified,x) - rhs_simplified + scalingfactor * abs((rhs_old - np.matmul(V_simplified,x))/timestep - velocity_simplified)
 
 # This function solves a least squares optimization problem with given cost function defined in "cost_function".
 # The base problem is given as V_simplified * x_simplified = rhs_simplified
@@ -30,7 +31,8 @@ def least_squares_approximation_with_velocity(V, V_simplified, rhs_simplified, v
 	if rhs_old is None:
 		rhs_approx, res, rank, s = np.linalg.lstsq(V_simplified, rhs_simplified, rcond=None)
 	else:
-		rhs_approx, cost, res, jac, grad, opt, act_mask = least_squares(cost_function, np.zeros(V_simplified.shape[1]), args=(rhs_old, rhs_simplified, velocity, V, V_simplified, timestep))
+		rhs = least_squares(cost_function, np.zeros(V_simplified.shape[1]), args=(rhs_old, rhs_simplified, velocity, V, V_simplified, timestep))
+		rhs_approx = rhs.x
 	rhs_reconstructed = V.dot(rhs_approx)
 
 	return rhs_reconstructed
@@ -44,6 +46,8 @@ def reduced_order_approximation(V, snapshot_selection, node_selection, isCalcula
 		# velocity_simplified = velocity_data[node_selection, :]
 		reconstruction_title = "Reconstructing snapshots with velocity"
 		x_old = None
+		v_snapshot = None
+		v_old = None
 	else:
 		reconstruction_title = "Reconstructing snapshots"
 
@@ -58,9 +62,12 @@ def reduced_order_approximation(V, snapshot_selection, node_selection, isCalcula
 			node_snapshot = A[node_selection,snapshot]
 
 		if velocity_data is not None:
-			velocity_snapshot = velocity_data[:, snapshot]
-			snapshot_reconstructed = least_squares_approximation_with_velocity(V, V_simplified, node_snapshot, velocity_snapshot, x_old, timestep)
-			snapshot_old = snapshot_reconstructed[node_selection]
+			snapshot_reconstructed = least_squares_approximation_with_velocity(V, V_simplified, node_snapshot, v_old, x_old, timestep)
+			x_old = snapshot_reconstructed[node_selection]
+			if v_old is not None:
+				v_snapshot = (v_old + velocity_data[:, snapshot]) * 0.5
+			v_old = velocity_data[:, snapshot]
+
 		else:
 			snapshot_reconstructed = least_squares_approximation(V, V_simplified, node_snapshot)
 		

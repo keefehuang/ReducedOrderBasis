@@ -12,7 +12,7 @@ from small_func import *
 
 
 ## TODO: Extend to include velocity/rotational data! Also need to get time-data in a4db files
-def data_extraction_a4db(a4db_name, isBasis, isCalculateError):
+def data_extraction_a4db(a4db_name, isBasis, isCalculateError, isVelocity):
 	### Opens up the a4db file
 	a4db 			= 	h5py.File(a4db_name, "r")
 
@@ -47,9 +47,24 @@ def data_extraction_a4db(a4db_name, isBasis, isCalculateError):
 
 		displacement_data = rearange_xyz(displacement_data)
 
-	return coordinates_data, displacement_data, id_data
+	velocity_data = None
+	if isVelocity:
+		for step in range(steps):
+			s = ('step_%s' % str(step + 1))
+			velocities 		= 	np.array(a4db["model_0"]["results_0"][s]["function_6"]['node']['function'])[coordinate_ind]
+			velocities 		= 	np.concatenate((velocities, np.array(a4db["model_0"]["results_0"][s]["function_7"]['node']['function'])[coordinate_ind]))
+			velocities 		= 	np.concatenate((velocities, np.array(a4db["model_0"]["results_0"][s]["function_8"]['node']['function'])[coordinate_ind]))
+			
+			if velocity_data is None:
+				velocity_data 	= np.empty((3*node_num, steps))
+			
+			velocity_data[:,step] = velocities
 
-def data_extraction_binout(binout_name, isBasis, isCalculateError):
+		velocity_data = rearange_xyz(velocity_data)		
+
+	return coordinates_data, displacement_data, id_data, velocity_data
+
+def data_extraction_binout(binout_name, isBasis, isCalculateError, isVelocity):
 
 	if isBasis is None or isCalculateError:
 		coordinate_data, displacement_data = binout_reading(binout_name, False, 'coordinates + displacements')
@@ -57,12 +72,18 @@ def data_extraction_binout(binout_name, isBasis, isCalculateError):
 	else:
 		coordinate_data = binout_reading(binout_name, False, 'coordinates')
 		displacement_data = None
+
+	if isVelocity:
+		velocity_data = binout_reading(binout_name, False, 'velocities')
+		velocity_data = rearange_xyz(velocity_data)
+	else:
+		velocity_data = None
 		
 	time_data = binout_reading(binout_name, False, 'time')
 	coordinate_data = rearange_xyz(coordinate_data)[:,0]
 	id_data	= binout_reading(binout_name, False, 'ids')
 
-	return coordinate_data, displacement_data, id_data, time_data
+	return coordinate_data, displacement_data, id_data, velocity_data, time_data
 
 def data_extraction_npz(npz_name, isVelocity):
 	data = np.load(npz_name)
