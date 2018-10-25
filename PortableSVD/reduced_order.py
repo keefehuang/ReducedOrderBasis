@@ -17,9 +17,6 @@ def singleReducedOrderApproximation(A, V, snapshot, node_selection, nodes=None, 
 
 	x_real 	= 	A[  	  : 		, snapshot 	]
 	V_red 	= 	V[  node_selection 	,     :		]
-
-	print(V_red.shape)
-	print(x_tilde.shape)
 	
 	x_red, res, rank, s = np.linalg.lstsq(V_red, x_tilde, rcond=None)
 	x_r = V.dot(x_red.T)

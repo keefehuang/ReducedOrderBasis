@@ -164,7 +164,6 @@ if __name__ == '__main__':
 			print("Please import the .py data correctly")
 			raise ValueError
 
-	print(len(xsection_data))
 
 	### Storing the dimensions of the various analysed functions
 	simplified_node_num  	= 	len(list(xsection_data))
@@ -173,13 +172,19 @@ if __name__ == '__main__':
 	snapshot_selection 		= 	range(timestep_num)
 
 	### Xsection mapping averages the xsection nodes to create new nodes for SVD
-	full_data, simplified_node_indices = xsection_mapping(full_data, full_data_ids, xsection_data, simplified_node_num, full_node_num, timestep_num)
+	# full_data, simplified_node_indices = xsection_mapping(full_data, full_data_ids, xsection_data, simplified_node_num, full_node_num, timestep_num)
+
+	simplified_node_indices = [item for sublist in xsection_data for item in sublist]
+
+	simplified_coordinates_data = 	full_coordinates_data[simplified_node_indices]
+	simplified_data 			= 	[full_data[0][simplified_node_indices, :]]
 
 	### Reconstruction of matrix based on SVD	
-	A_r, error_r = matrixReconstruction(full_data, snapshot_selection, simplified_node_indices, basisRequired=True, V=None, reducedOrderMethod='rSVD', reducedOrderParams=params, isError=True, nodes=simplified_data, isInput=True)
+	error_r, A_r  = matrixReconstruction(full_data, snapshot_selection, simplified_node_indices, basisRequired=True, V=None, reducedOrderMethod='rSVD', reducedOrderParams=params, isError=True, nodes=simplified_data, isInput=True)
 
 	### Adding the initial coordinates to the reconstructed displacements
 	A_r = A_r[:full_node_num,:] + full_coordinates_data.reshape((-1,1))
+	# A_r = A_r[:full_node_num,:]
 
 	### Perform vtk mapping as necessary
 	if vtkMapping:
@@ -187,8 +192,3 @@ if __name__ == '__main__':
 
 	### Output the reconstructed data
 	writetoVtk(A_r, full_node_num, snapshot_selection, visualization_folder_in_path, visualization_folder_out_path, vtk_name, mapping_name, isError=True, error_r=error_r)
-
-	raise NameError
-
-
-		

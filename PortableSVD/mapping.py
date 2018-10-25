@@ -89,7 +89,7 @@ def vtk_mapping(binout_state, vtk_in_directory, mapping_directory, vtk_name="Bum
 		extended_map[3*i+1] = node*3 + 1
 		extended_map[3*i+2] = node*3 + 2	
 
-	save_location = os.path.join(mapping_directory, 'extended_map_' + vtk_name)
+	save_location = os.path.join(mapping_directory, 'extended_map_' + vtk_name + '.npy')
 	np.save(save_location, extended_map)	
 
 	return save_location
@@ -127,11 +127,15 @@ def xsection_mapping(full_data, full_data_ids, xsection_data, simplified_node_nu
 		full_data[i] = data_set
 	return full_data, simplified_node_indices
 
+
 def time_mapping(full_data, time_data, simplified_data, simplified_time_data):
-	time_error = 1e-2
+	time_error = 1e-5
 	time_indices = []
+
+	simplified_time_data = simplified_time_data * 10
 	for time_index in simplified_time_data:
 		time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
+
 
 	for i, data_set in enumerate(full_data):
 		data_set = data_set[:,time_indices]
