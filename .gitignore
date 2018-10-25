@@ -1,2 +1,4 @@
 *.vtk
 *.o
+*.a4db
+*.binout
