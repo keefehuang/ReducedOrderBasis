@@ -2,9 +2,12 @@ import numpy as np
 import fbpca
 import numpy as np 
 from scipy.optimize import least_squares
-import pyprind
+try:
+	import pyprind
+except:
+	pass
 
-scalingfactor = 0.01;
+scalingfactor = 0.0001;
 
 time = 0.01
 def powern(n):
@@ -39,8 +42,9 @@ def least_squares_approximation_with_velocity(V, V_simplified, rhs_simplified, v
 
 # Performs a for loop over all snapshots in Binout data "A" and calls least_squares_approximation which runs the
 # least squares approximation for a single snapshot
-def reduced_order_approximation(V, snapshot_selection, node_selection, isCalculateError=False, nodes=None, isInput=False, A=None, velocity_data=None, timestep=None):
+def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes=None, A=None, velocity_data=None, timestep=None):
 	error_reconstructed = None
+	snapshot_selection = range(nodes.shape[1])
 	V_simplified = V[node_selection, :]
 	if velocity_data is not None:
 		# velocity_simplified = velocity_data[node_selection, :]
@@ -51,23 +55,18 @@ def reduced_order_approximation(V, snapshot_selection, node_selection, isCalcula
 	else:
 		reconstruction_title = "Reconstructing snapshots"
 
-	if isCalculateError and A is None:
-		print("No A matrix provided for error calculation. No error will be output")
-		isCalculateError = False
-	bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title=reconstruction_title, bar_char='█')
+	try:
+		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title=reconstruction_title, bar_char='█')
+	except:
+		pass
 	for i, snapshot in enumerate(snapshot_selection):
-		if isInput:
-			node_snapshot = nodes[:, i]
-		else:
-			node_snapshot = A[node_selection,snapshot]
-
+		node_snapshot = nodes[:, i]			
 		if velocity_data is not None:
 			snapshot_reconstructed = least_squares_approximation_with_velocity(V, V_simplified, node_snapshot, v_old, x_old, timestep)
 			x_old = snapshot_reconstructed[node_selection]
 			if v_old is not None:
 				v_snapshot = (v_old + velocity_data[:, snapshot]) * 0.5
 			v_old = velocity_data[:, snapshot]
-
 		else:
 			snapshot_reconstructed = least_squares_approximation(V, V_simplified, node_snapshot)
 		
@@ -82,7 +81,10 @@ def reduced_order_approximation(V, snapshot_selection, node_selection, isCalcula
 				error_reconstructed = error_reconstructed_snapshot
 			else:
 				error_reconstructed = np.column_stack((error_reconstructed,error_reconstructed_snapshot))
-		bar.update()
+		try:
+			bar.update()
+		except:
+			pass
 				
 	return A_reconstructed, error_reconstructed
 

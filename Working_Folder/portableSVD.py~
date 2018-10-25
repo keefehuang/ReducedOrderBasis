@@ -1,0 +1,234 @@
+
+import numpy as np
+from small_func import *
+from Binout_reading import binout_reading
+from mapping import *
+from reduced_order import *
+import fbpca
+import importlib
+from preprocessing import *
+import pickle
+from writetoOutput import *
+### Please import the data from a .py. Replace CarCrashModel with project name and nodes with the structure containing the nodes
+### Please note that an ITERATIVE data object is required
+from Projects.THUMS.Data.tracking_nodes import tracking_points as xsection_data
+
+
+if __name__ == '__main__':
+
+	### Setting up the paths for the working directory and the positions of the various files	
+	main_directory_path						=		os	.path.dirname(os.path.realpath(__file__))
+	project_folder							= 		"Projects/"
+	data_folder								=		"Data/"
+	visualization_in_folder					=		"Visualization/VTK_IN/"
+	visualization_out_folder				=		"Visualization/VTK_OUT/"
+	mapping_folder 							=		"Visualization/Mapping/"
+
+
+	### Determining the name of the project
+	project_files_available					= 		[x for x in next(os.walk("./Projects"))[1]]
+	print("Please select project")
+	for i, name in enumerate(project_files_available):
+		print('{first} = {second}'.format(first=i, second=name))
+
+	project_name 							= 		input('choose project folder = ')
+	project_folder_path 					=		os.path.join(main_directory_path, project_folder, project_files_available[int(project_name)])
+	data_folder_path						= 		os.path.join(project_folder_path, data_folder)
+	visualization_folder_in_path			= 		os.path.join(project_folder_path, visualization_in_folder)
+	visualization_folder_out_path			=		os.path.join(project_folder_path, visualization_out_folder)
+	visualization_mapping_path				=		os.path.join(project_folder_path, mapping_folder)
+
+	### Determining the input file with full simulation data
+	# supported_input_types 					=		[".binout", ".a4db"]
+	supported_input_types 					=		[".binout"]
+	
+	print("Please choose type of input file containing the full simulation data:")
+	
+	for i, input_type in enumerate(supported_input_types):
+		print('{first} = {second}'.format(first=i, second=input_type))
+
+	full_input_type							=		input('choose input type = ')
+
+	available_input_files					=		[os.path.basename(x) for x in glob.glob('%s*%s*'%(data_folder_path, supported_input_types[int(full_input_type)]))]
+
+	print('List of supported full data input files available in /Data folder:')
+	for i, input_file in enumerate(available_input_files):
+		print('{first} = {second}'.format(first=i, second=input_file))
+
+
+	choose_full_input_file 					=  		input('choose full simulation file index = ')
+	full_input_name								=		available_input_files[int(choose_full_input_file)]
+	full_input_file_path					=  		os.path.join(data_folder_path, full_input_name)
+
+
+	supported_output_types 					=		[".k"]
+	
+	print("Please choose type of output file = ")
+	
+	for i, output_type in enumerate(supported_output_types):
+		print('{first} = {second}'.format(first=i, second=output_type))
+
+	output_type							=		input('choose output type = ')
+
+	available_output_files					=		[os.path.basename(x) for x in glob.glob('%s*%s*'%(data_folder_path, supported_output_types[int(output_type)]))]
+
+	print('List of supported output files available in /Data folder:')
+	for i, input_file in enumerate(available_output_files):
+		print('{first} = {second}'.format(first=i, second=input_file))
+
+
+	choose_output_file 					=  		input('choose output file index = ')
+	output_name						=		available_output_files[int(choose_output_file)]
+	output_file_path					=  		os.path.join(data_folder_path, output_name)
+
+
+
+	### Determining the input file with simplified simulation data
+	supported_simplified_input_types 		= 		[".npz", ".npy"]
+
+	print("Please choose type of input file containing the simplified simulation data:")
+	
+	for i, input_type in enumerate(supported_simplified_input_types):
+		print('{first} = {second}'.format(first=i, second=input_type))
+
+	simplified_input_type 					=  		input('choose full data input file index = ')
+
+	available_simplified_input_files		=		[os.path.basename(x) for x in glob.glob('%s*%s*'%(data_folder_path, supported_simplified_input_types[int(simplified_input_type)]))]
+
+	#print('List of supported simplified data input files available in /Data folder:')
+
+	#for i, input_file in enumerate(available_simplified_input_files):
+	#	print('{first} = {second}'.format(first=i, second=input_file))
+
+	#choose_simplified_input_file 			=  		input('choose simplified data file index = ')
+	#output_name								=		available_simplified_input_files[int(choose_simplified_input_file)]
+	#simplified_input_file_path				=  		os.path.join(data_folder_path, output_name)
+
+	### Determining the input file with the simplified nodal data
+	supported_nodal_input_types 				= 		[".npy", ".py"]
+
+	print("Please choose type of input file containing the simplified node data:")
+	
+	for i, input_type in enumerate(supported_nodal_input_types):
+		print('{first} = {second}'.format(first=i, second=input_type))
+
+	nodal_input_type 						=  		input('choose nodal input file index = ')
+
+	available_nodal_input_files				=		[os.path.basename(x) for x in glob.glob('%s*%s*'%(data_folder_path, supported_nodal_input_types[int(nodal_input_type)]))]
+
+	print('List of supported node input files available in /Data folder:')
+
+	for i, input_file in enumerate(available_nodal_input_files):
+		print('{first} = {second}'.format(first=i, second=input_file))
+	try:
+	  choose_nodal_input_file		 			=  		input('choose simplified nodal data file index = ')
+	  nodal_input_name								=		available_nodal_input_files[int(choose_nodal_input_file)]
+	  nodal_input_file_path					=  		os.path.join(data_folder_path, output_name)
+	except:
+	  pass
+
+
+	### Set the parameters for the SVD calculation
+	k = int(input("Set the number of basis 'k' for the SVD calculation = "))
+	n = int(input("Set the number of power iterations 'n' for the SVD calculation = "))
+	params = [k, n]
+
+	### Put True if Vtk Mapping is required
+#	vtkMapping = int(input("Is vtk mapping required?\n0 - False \n1 - True\nPlease select an option = "))
+#
+#	while vtkMapping != 0 and vtkMapping != 1:
+#		print("Wrong input detected")
+#		vtkMapping = int(input("Is vtk mapping required?\n 0 - False \n 1 - True\n"))
+#
+#	if vtkMapping == 0:
+#		vtkMapping = False
+#	elif vtkMapping == 1:
+#		vtkMapping = True
+#
+#	if not vtkMapping:
+#		available_mapping_files				=		[os.path.basename(x) for x in glob.glob('%s*%s'%(visualization_mapping_path, ".npy"))]
+#		if len(available_mapping_files) > 0:
+#			for i, mapping_file in enumerate(available_mapping_files):
+#				print('{first} = {second}'.format(first=i, second=mapping_file))
+#			choose_mapping							= 		input("Please choose template mapping file = ")
+#			mapping_name							=		os.path.join(visualization_mapping_path, available_mapping_files[int(choose_mapping)])
+#			vtk_name								=		input("Please set vtk name = ")
+#		else:
+#			print("No mapping files available")
+#			vtkMapping = True
+#
+#	if vtkMapping:
+#		available_vtk_files					=		[os.path.basename(x) for x in glob.glob('%s*%s'%(visualization_folder_in_path, ".vtk"))]
+#
+#		for i, vtk_file in enumerate(available_vtk_files):
+#			print('{first} = {second}'.format(first=i, second=vtk_file))
+#
+#		choose_vtk							= 		input("Please choose template vtk file = ")
+#		vtk_name							=		available_vtk_files[int(choose_vtk)].split("_")[0]
+	
+	
+	print("Extracting full simulation data")
+	if full_input_type == "0":	
+		full_coordinates_data, full_data, full_data_ids, time_data = data_extraction_binout(full_input_file_path)
+	#else:
+	#	full_coordinates_data, full_data, full_data_ids, time_data = data_extraction_a4db(full_input_file_path)
+
+	#print("Extracting simplified simulation data")
+	#if simplified_input_type == "0":
+#		simplified_coordinates_data, simplified_data, simplified_time_data = data_extraction_npz(simplified_input_file_path)
+#	else:
+#		simplified_data = data_extraction_npy(simplified_input_file_path)
+
+
+	#full_data = time_mapping(full_data, time_data, simplified_data, simplified_time_data)
+
+	print("Extracting simplified node data")
+	if nodal_input_type == "0":
+		xsection_data = data_extraction_npy(nodal_input_file_path)
+	else:
+		if xsection_data is not None:
+			pass
+			print(xsection_data)
+		else:
+			print("Please import the .py data correctly")
+			raise ValueError
+
+#	print(full_data[0][np.argmax(np.abs(full_data[0])[:,-1]),:])
+	print(full_data[0][np.where(full_data_ids == 8620209)[0][0]*3, :])
+
+	### Storing the dimensions of the various analysed functions
+	simplified_node_num  	= 	len(list(xsection_data))
+	full_node_num		 	= 	full_coordinates_data.shape[0]
+	timestep_num			=	full_data[0].shape[1]	
+	snapshot_selection 		= 	range(0,timestep_num)
+
+	### Xsection mapping averages the xsection nodes to create new nodes for SVD
+	full_data = np.concatenate((full_data[0], full_coordinates_data.reshape((-1,1))),axis=1)
+	
+
+	full_data, simplified_node_indices = xsection_mapping([full_data], full_data_ids, xsection_data, simplified_node_num, full_node_num, timestep_num+1)
+	print(simplified_node_indices)
+	simplified_coordinates_data = full_data[0][:,-1][simplified_node_indices]
+	full_data = [full_data[0][:,:-1]]
+	simplified_data = full_data[0][simplified_node_indices]
+	
+	### Reconstruction of matrix based on SVD	
+	A_r, error_r = matrixReconstruction(full_data, snapshot_selection, simplified_node_indices, basisRequired=True, V=None, reducedOrderMethod='rSVD', reducedOrderParams=params, isError=True, nodes=None, isInput=False)
+
+	### Adding the initial coordinates to the reconstructed displacements
+	A_r = A_r[:full_node_num,:] + full_coordinates_data.reshape((-1,1))
+
+	print(A_r[np.where(full_data_ids == 8620209)[0][0]*3, :])
+
+	### Perform vtk mapping as necessary
+	#if vtkMapping:
+	#	mapping_name = vtk_mapping(full_coordinates_data, visualization_folder_in_path, visualization_mapping_path, vtk_name=vtk_name, no_binout_nodes=full_node_num)	
+
+	### Output the reconstructed data
+	#writetoVtk(A_r, full_node_num, snapshot_selection, visualization_folder_in_path, visualization_folder_out_path, vtk_name, mapping_name, isError=True, error_r=error_r)
+	# print(A_r - full_data[0][:full_node_num,:])
+	writetoOutput(output_file_path, A_r, full_data_ids)
+
+
+
+		

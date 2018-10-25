@@ -12,9 +12,25 @@ import os.path
 import re
 import copy
 import importlib
-import pyprind
+try:
+	import pyprind
+except:
+	pass
 
-def simple_average(tracking_points, weights):
+# weighted average performed on tracking points
+def weighted_average(tracking_points, weights):
+	if weights is None:
+		return simple_average(tracking_points)
+	else:
+		summed_points = None
+		for i, point in enumerate(range(tracking_points.shape[0]//3)):
+			if summed_points is None:
+				summed_points = weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
+			else:
+				summed_points += weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
+		return np.array(summed_points/(tracking_points.shape[0]/3))
+# simple average performed on tracking points
+def simple_average(tracking_points):
 	summed_points = None
 	for point in range(tracking_points.shape[0]//3):
 		if summed_points is None:
@@ -23,14 +39,6 @@ def simple_average(tracking_points, weights):
 			summed_points += tracking_points[[point*3, point*3+1, point*3+2], :]
 	return summed_points/(tracking_points.shape[0]/3)
 
-def weighted_average(tracking_points, weights):
-	summed_points = None
-	for i, point in enumerate(range(tracking_points.shape[0]//3)):
-		if summed_points is None:
-			summed_points = weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
-		else:
-			summed_points += weights[i]*tracking_points[[point*3, point*3+1, point*3+2], :]
-	return np.array(summed_points/(tracking_points.shape[0]/3))
 
 # function to calculate 2-norm difference of two nodes
 def res(node1, node2):
@@ -69,7 +77,10 @@ def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_nu
 	static_nodes = None
 	
 	print("Mapping simulation nodes to vtk nodes")
-	bar = pyprind.ProgBar(sorted_vtk.shape[0], monitor=True, title='Mapping Progress', bar_char='█')
+	try:
+		bar = pyprind.ProgBar(sorted_vtk.shape[0], monitor=True, title='Mapping Progress', bar_char='█')
+	except:
+		pass
 	for i,node in enumerate(sorted_vtk):
 		count = 0
 		error = 1e-2
@@ -106,7 +117,10 @@ def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_nu
 			assert np.linalg.norm(full_data_state[ind_binout[i]] - sorted_vtk[i]) < error
 		else:
 			assert np.linalg.norm(static_nodes[num_static_nodes] - sorted_vtk[i]) < error
-		bar.update(item_id = "Node {}/{}".format(i, sorted_vtk.shape[0]))
+		try:
+			bar.update(item_id = "Node {}/{}".format(i, sorted_vtk.shape[0]))
+		except:
+			pass
 
 	index_map = ind_binout[np.argsort(ind_vtk)]
 	if static_nodes is not None:
@@ -135,68 +149,45 @@ def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_nu
 		print("Static nodes saved to " + static_nodes_save_file)
 	return mapping_save_file, static_nodes_save_file
 
-def default_function(tracking_points):
-	summed_points = None
-	for point in range(tracking_points.shape[0]//3):
-		if summed_points is None:
-			summed_points = tracking_points[[point*3, point*3+1, point*3+2], :]
-		else:
-			summed_points += tracking_points[[point*3, point*3+1, point*3+2], :]
-	return summed_points/(tracking_points.shape[0]/3)
 
-def run_function(func, tracking_points, weights):
-	return func(tracking_points, weights)
-
-### Generates and concatenates new basis vectors using the tracking node ids
-def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, functions=None):	
+### Generates and concatenates new basis vectors using the tracking node ids. Returns updated input data with new appended rows
+### and the indices in the updated input data related to the simplified data nodes
+def append_tracking_point_rows(full_data, full_data_ids, tracking_point_nodes, weights=None):	
 	
 	tracking_node_indices = []
-	node_height = full_data.shape[0]
 	tracking_point_nodes = np.array(tracking_point_nodes)
 	tracking_point_num = tracking_point_nodes.shape[0]
+
+	full_data_height = full_data.shape[0]
 	full_data_length = full_data.shape[1]
+
 	for num in range(tracking_point_num):
 		node_data	 		= None
 		if np.array(tracking_point_nodes[num]).shape[0] != 1:
 			for node_id in tracking_point_nodes[num]:
-				# degree_of_freedom is row of node which corresponds to tracking point num
-				degree_of_freedom = np.where(full_data_ids == node_id)[0][0]
-				node_ids = [degree_of_freedom*3, degree_of_freedom*3+1, degree_of_freedom*3+2]
+				# node position refers to the location of the node id in the full_data_ids array
+				node_id_position = np.where(full_data_ids == node_id)[0][0]
+				# degrees_of_freedom refer to the position of the degrees of freedom associated with node id in node_position
+				node_id_degrees_of_freedom = [node_id_position*3, node_id_position*3+1, node_id_position*3+2]
 				if node_data is None:
-					node_data = full_data[node_ids,:]
+					node_data = full_data[node_id_degrees_of_freedom,:]
 				else:	
-					node_data = np.concatenate((node_data, full_data[node_ids,:]))
+					node_data = np.concatenate((node_data, full_data[node_id_degrees_of_freedom,:]))
 
-			if functions is not None:
-				full_data = np.concatenate((full_data, run_function(functions[num][0], node_data, functions[num][1])))
+			if weights is not None:
+				full_data = np.concatenate((full_data, weighted_average(node_data, weights[num])))
 			else:
-				full_data = np.concatenate((full_data, default_function(node_data)))
+				full_data = np.concatenate((full_data, simple_average(node_data)))
 			  
-			tracking_node_indices.append(node_height)
-			tracking_node_indices.append(node_height + 1)
-			tracking_node_indices.append(node_height + 2)
-			node_height += 3
+			tracking_node_indices.append(full_data_height)
+			tracking_node_indices.append(full_data_height + 1)
+			tracking_node_indices.append(full_data_height + 2)
+			full_data_height += 3
 		else:
-			path = np.where(full_data_ids == tracking_point_nodes[num])[0][0]
-			tracking_node_indices.append(path*3)
-			tracking_node_indices.append(path*3+1)
-			tracking_node_indices.append(path*3+2)
+			node_id_position = np.where(full_data_ids == tracking_point_nodes[num])[0][0]
+			tracking_node_indices.append(node_id_position*3)
+			tracking_node_indices.append(node_id_position*3+1)
+			tracking_node_indices.append(node_id_position*3+2)
 	print("Mapping Complete")
 	return full_data, tracking_node_indices
-
-def time_mapping(displacement_data, time_data, simplified_displacement_data, simplified_time_data, simplified_velocity_data):
-	time_error = 1e-2
-	time_indices = []
-	if displacement_data.shape[1] >= simplified_displacement_data.shape[1]:
-		for time_index in simplified_time_data:
-			time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
-		displacement_data = displacement_data[:,time_indices]	
-	else:
-		for time_index in time_data:
-			time_indices.append(np.where(abs(time_data - time_index) < time_error)[0][0])
-		simplified_displacement_data = simplified_displacement_data[:,time_indices]	
-		if simplified_velocity_data is not None:
-			simplified_velocity_data = simplified_velocity_data[:, time_indices]
-
-	return displacement_data, simplified_displacement_data, simplified_velocity_data
 		

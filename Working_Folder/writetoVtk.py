@@ -2,11 +2,14 @@ from shutil import copyfile
 import os
 import os.path
 import numpy as np
-import pyprind
+try:
+	import pyprind
+except:
+	pass
 
 
-def writetoVtk(A_r, full_node_num, snapshot_selection, input_vtk_file, output_vtk_file, mapping_name, isCalculateError=False, error_r=None):
-
+def writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_name, isCalculateError=False, error_r=None):
+	snapshot_selection = range(A_r.shape[1])
 	output_folder = "/".join(output_vtk_file.split("/")[:-1])
 	# ensure output folder is created
 	if not os.path.exists(output_folder):
@@ -36,7 +39,10 @@ def writetoVtk(A_r, full_node_num, snapshot_selection, input_vtk_file, output_vt
 		post_section = bodyText[rv_end:]
 
 	# loop through all timesteps
-	bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title='Printing vtks', bar_char='█')
+	try:
+		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title='Printing vtks', bar_char='█')
+	except:
+		pass
 	for snapshot in snapshot_selection:
 		x = A_r[:,snapshot]
 		vtk_out_name = output_vtk_file[:-4] + str(snapshot) + '.vtk'		
@@ -68,6 +74,9 @@ def writetoVtk(A_r, full_node_num, snapshot_selection, input_vtk_file, output_vt
 				vtk_out.write(pre_section + uv_header + updatedVariables + mid_section + rv_header + updatedVariables + post_section + errorHeader + errorVariable)	
 			else:
 				vtk_out.write(pre_section + uv_header + updatedVariables + mid_section + rv_header + updatedVariables + post_section)
-		bar.update()
+		try:
+			bar.update()
+		except:
+			pass
 
 

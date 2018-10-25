@@ -47,6 +47,7 @@ def data_extraction_a4db(a4db_name, isBasis, isCalculateError, isVelocity):
 
 		displacement_data = rearange_xyz(displacement_data)
 
+	### Extract velocity data from the a4db, data is sorted prior to concatenation
 	velocity_data = None
 	if isVelocity:
 		for step in range(steps):
@@ -112,11 +113,63 @@ def data_extraction_py(py_name):
 
 	return nodes
 
-if __name__ == '__main__':
+def interpolate_reference_displacement(displacement_data, time_data, simplified_displacement_data, simplified_time_data):
+	# create time_data and simplified_time_data lists if not provided based on length of provided displacement data
+	# assupmption that both simulations end at the same timestep - will introduce errors if this is not the case
+	if time_data is None and simplified_time_data is None:
+		time_data = np.linspace(0,1 ,num=displacement_data.shape[1])
+		simplified_time_data = np.linspace(0,1 , num=simplified_displacement_data.shape[1])
+
+	elif time_data is None or simplified_time_data is None:
+		try:
+			t_end = time_data[-1]
+			simplified_time_data = np.linspace(0, t_end, simplified_displacement_data.shape[1])
+		except:
+			t_end = simplified_time_data[-1]
+			time_data = np.linspace(0, t_end , displacement_data.shape[1])
+
+	eps = 1e-5
+	# assumption that timesteps are evenly distributed. If number of timesteps are the same and the end timestep is identical, assumption
+	# that the displacement_data is already interpolated.
+	if time_data.shape[0] == simplified_time_data.shape[0] and np.abs(time_data[-1] - simplified_time_data[-1]) < eps:
+		return displacement_data
+
+	# Determine if timesteps from full model match those of simplified model. If not, perform linear interpolation to get reference snapshot	
+	A_reference = np.zeros((displacement_data.shape[0], simplified_time_data.shape[0]))
+	for i, time_step in enumerate(simplified_time_data):
+		try:
+			index_1 = next(j for j,k in enumerate(time_data) if k >= time_step)
+		except:
+			index_1 = time_data.shape[0]-1
+		if abs(time_data[index_1] - time_step) < eps:
+			A_reference[:,i] = displacement_data[:,index_1]
+		elif abs(time_data[index_1-1] - time_step) < eps:
+			A_reference[:,i] = displacement_data[:,index_1-1]
+		else:
+			interpolation_constant = (time_step - time_data[index_1-1]) / (time_data[index_1] - time_data[index_1-1])	
+			A_reference[:,i] = displacement_data[:,index_1-1] + (displacement_data[:,index_1]-displacement_data[:,index_1-1]) * interpolation_constant
+	return A_reference
+
+
+# if __name__ == '__main__':
 	# input_name = "/home/keefe/Documents/BMW/HiWi/Code/ReducedOrderBasis/PortableSVD/Projects/CarCrashModel/Data/SFS_MAIN_NO_ROT.a4db"
 	# data_extraction_a4db(input_name)
 	# input_name = "/home/keefe/Documents/BMW/HiWi/Code/ReducedOrderBasis/PortableSVD/Projects/CarCrashModel/Data/bumper.binout"
 	# data_extraction_binout(input_name)
 
-	input_name = "/home/keefe/Documents/BMW/HiWi/Code/ReducedOrderBasis/PortableSVD/Projects/CarCrashModel/Data/Bumper_data_higher_resolution.npz"
-	data_extraction_npz(input_name)
+	# input_name = "/home/keefe/Documents/BMW/HiWi/Code/ReducedOrderBasis/PortableSVD/Projects/CarCrashModel/Data/Bumper_data_higher_resolution.npz"
+	# data_extraction_npz(input_name)
+
+	# displacement1 = np.linspace(0, 200, 5).reshape((1,-1))
+	# displacement2 = np.linspace(0, 50, 5).reshape((1,-1))
+
+	# displacement_data = np.vstack((displacement1, displacement2))
+	# print(displacement_data)
+	# time_data = np.linspace(0,1, 5)
+	# simplified_time_data = np.linspace(0,1, 21)	
+
+	# print(time_data)
+	# print(simplified_time_data)
+	# A_reference = interpolate_reference_displacement(displacement_data, time_data, simplified_time_data)
+
+	# print(A_reference)
