@@ -1,13 +1,11 @@
 import numpy as np
-import fbpca
-import numpy as np 
 from scipy.optimize import least_squares
 try:
 	import pyprind
 except:
 	pass
 
-scalingfactor = 0.0001;
+scalingfactor = 0
 
 time = 0.01
 def powern(n):

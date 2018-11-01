@@ -6,7 +6,6 @@ import argparse
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 # Library imports
-from Binout_reading import binout_reading
 import numpy as np 
 import os.path
 import re

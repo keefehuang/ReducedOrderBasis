@@ -7,16 +7,13 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 # Library imports
 import numpy as np
-from scipy.linalg import svd
-# from ristretto.svd import rsvd
+# from scipy.linalg import svd
 from small_func import *
-from Binout_reading import binout_reading
 from mapping import *
 from reduced_order import *
 import fbpca
 import importlib
 from preprocessing import *
-from writetoOutput import *
 from writetoVtk import *
 import pickle
 import sys
@@ -51,18 +48,14 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		_, simplified_displacement_data, _, simplified_velocity_data = data_extraction_a4db(full_data_input_file, None, False, isVelocityConstraints)	
 	else:
 		print("Could not recognize tracking simplified data file... Trying to read objects...")
-		simplified_displacement_data = pickle.load(open(simplified_data_file, "rb"))
+		with open(simplified_data_file, "rb") as f:
+			simplified_displacement_data = pickle.load(f)
 		simplified_velocity_data = None
 		print("Read succesfully")	
 
 	# Modified to reduce time for higher resolution data
 	simplified_displacement_data = simplified_displacement_data[:,0::10]
 	simplified_time_data = simplified_time_data[0::10]
-	# print(simplified_displacement_data.shape)
-	# barrier_node = np.where(full_data_ids==58126936)[0][0]
-	
-	# print(barrier_node)
-	
 
 	# Extracting tracking point ids and functions for weighting.
 	# Note that pkl files cannot store functions
@@ -77,7 +70,8 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 			weights = None
 			print("No weights detected in input")
 	elif tracking_nodes_file.endswith(".pkl"):
-		tracking_node_data = pickle.load(open(tracking_nodes_file, "rb"))
+		with open(tracking_node_file, "rb") as f:
+			tracking_node_data = pickle.load(f)
 
 		try:
 			tracking_node_ids = tracking_node_data[0]
@@ -101,16 +95,13 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		print("Read succesfully")
 
 
-	# print(np.sum(np.abs(displacement_data[barrier_node*3,:])))
-	# print(np.sum(np.abs(displacement_data[barrier_node*3+1,:])))
-	# print(np.sum(np.abs(displacement_data[barrier_node*3+2,:])))
-	# print(n )
+	
 	### Extracting basis vectors
 	if basis_file is None:
 		print("Calculating basis vectors from full data")
-		# (V, s , Vt) = fbpca.pca(displacement_data, k=k , n_iter=n)
+		(V, s , Vt) = fbpca.pca(displacement_data, k=k , n_iter=n, raw=True)
 		# (V, s , Vt) = rsvd(displacement_data, k=k , n=n)
-		U, s , Vt = svd(displacement_data, full_matrices=False)
+		# U, s , Vt = svd(displacement_data, full_matrices=False)
 		V = U[:,:k]
 		print("Storing calculated basis vectors as .pkl")
 		pickle.dump(V, open("basis_vectors.pkl", "wb"))
@@ -120,10 +111,12 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		if basis_file.endswith(".dat") or basis_file.endswith(".npy"):
 			V = np.fromfile(basis_file, dtype=float)
 		elif basis_file.endswith(".pkl"):
-			V = pickle.load(open(basis_file, "rb"))
+			with open(basis_file, "rb") as f:
+				V = pickle.load(f)
 		else:
 			print("Could not recognize reduced basis file... Trying to read objects...")
-			V = pickle.load(open(basis_file, "rb"))
+			with open(basis_file, "rb") as f:
+				V = pickle.load(f)
 			print("Read succesfully")
 
 	# print(V[barrier_node*3,:])
@@ -168,11 +161,11 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		static_nodes = np.tile(np.load(static_nodes).reshape((-1,1)), (1,len(snapshot_selection)))
 		A_r = np.concatenate((A_r, static_nodes))
 
-	### Output a norm of the error
-	print(np.linalg.norm(np.mean(error_r, 1)))
+	# ### Output a norm of the error
+	# print(np.linalg.norm(np.mean(error_r, 1)))
 
 	### Output the reconstructed data
-	# writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_file, isCalculateError=isCalculateError, error_r=error_r)
+	writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_file, isCalculateError=isCalculateError, error_r=error_r)
 	if isPrintInterpolated:
 		writetoVtk(disp_r, full_node_num, input_vtk_file, "./visualisation/out/Bumper_binout.vtk", mapping_file, isCalculateError=False, error_r=None)
 	print("Output Vtks printed")
@@ -181,6 +174,7 @@ def main():
 	description = "Computes a RB-approximated reconstruction of a Finite Element model"
 	epilog = """example:
  	$ python reconstruct.py ./input_data/SFS_MAIN_Full_Model.a4db ./input_data/bumper_data_higher_res.npz ./input_data/testfile.npz ./visualisation/in/Bumper_0.vtk ./visualisation/out/Bumper.vtk -m ./input_data/Bumper_mapping_higher_resolution_a4db.npy -v -e -b ./input_data/basis_vectors_svd.pkl
+ 	$ python reconstruct.py [full model binout/a4db] [simplified model binout/a4db] []
 	""".format("reconstruction.py")
 
 	argparser = argparse.ArgumentParser(description=description,epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)

@@ -5,14 +5,27 @@ from os.path import splitext
 import argparse
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-import h5py
-import numpy as np
-from Binout_reading import binout_reading
-from small_func import *
 
+import numpy as np
+
+from small_func import *
+try:
+	from Binout_reading import binout_reading
+	isQD = True
+except:
+	print("qd.cae library cannot be loaded, loading from Binout format is not supported in this python instance")
+	isQD = False
+try:
+	import h5py
+	ish5py = True
+except:
+	print("h5py library cannot be loaded, loading from a4db format is not supported in this python instance")
+	ish5py = False
 
 ## TODO: Extend to include velocity/rotational data! Also need to get time-data in a4db files
 def data_extraction_a4db(a4db_name, isBasis, isCalculateError, isVelocity):
+	if not ish5py:
+		raise ImportError("h5py library not available, a4db format not readable")
 	### Opens up the a4db file
 	a4db 			= 	h5py.File(a4db_name, "r")
 
@@ -66,6 +79,8 @@ def data_extraction_a4db(a4db_name, isBasis, isCalculateError, isVelocity):
 	return coordinates_data, displacement_data, id_data, velocity_data
 
 def data_extraction_binout(binout_name, isBasis, isCalculateError, isVelocity):
+	if not isQD:
+		raise ImportError("qd.cae library not available, Binout format not readable")
 
 	if isBasis is None or isCalculateError:
 		coordinate_data, displacement_data = binout_reading(binout_name, False, 'coordinates + displacements')
