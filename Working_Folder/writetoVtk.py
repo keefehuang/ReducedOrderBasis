@@ -24,7 +24,7 @@ def writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_name
 
 	dimensions = 3
 
-	with open(input_vtk_file, 'r', encoding='utf-8') as vtk_in:
+	with open(input_vtk_file, 'r') as vtk_in:
 		bodyText = vtk_in.read()
 		uv_start          =       bodyText.index(updatedVariableName)
 		uv_end              =       bodyText.index(metaDataStart)
@@ -42,7 +42,7 @@ def writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_name
 	try:
 		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title='Printing vtks', bar_char='*')
 	except:
-		pass
+		print("Printing vtks")
 	for snapshot in snapshot_selection:
 		x = A_r[:,snapshot]
 		vtk_out_name = output_vtk_file[:-4] + str(snapshot) + '.vtk'		
@@ -69,7 +69,7 @@ def writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_name
 				errorVariable = errorVariable + " " + str(variable)
 
 		##  write to output file at output location
-		with open(vtk_out_name, 'w', encoding='utf-8') as vtk_out:
+		with open(vtk_out_name, 'w') as vtk_out:
 			if isCalculateError:
 				vtk_out.write(pre_section + uv_header + updatedVariables + mid_section + rv_header + updatedVariables + post_section + errorHeader + errorVariable)	
 			else:

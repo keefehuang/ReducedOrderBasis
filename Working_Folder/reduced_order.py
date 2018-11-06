@@ -59,7 +59,7 @@ def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes
 	try:
 		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title=reconstruction_title, bar_char='*')
 	except:
-		pass
+		print(reconstruction_title)
 	for i, snapshot in enumerate(snapshot_selection):
 		node_snapshot = nodes[:, i]			
 		if velocity_data is not None:

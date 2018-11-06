@@ -22,9 +22,6 @@ import sys
 ### Please note that an ITERATIVE data object is required
 
 def reconstruct(binout_file, tracking_nodes_file, keyfile, output_file, singleframe=True, basis_file=None, target_position_file=None):
-	"""
-	Computes the reconstruction. TODO: DOC
-	"""
 	
 	### Set the parameters for the SVD calculation
 	n = 5	
@@ -86,6 +83,9 @@ def reconstruct(binout_file, tracking_nodes_file, keyfile, output_file, singlefr
 			target_data = np.load(target_position_file)[:,-1]
 		elif target_position_file[-3:] == "pkl":
 			target_data = pickle.load(open(target_position_file, "rb"))
+		elif target_position_file.endswith(".binout"):
+			target_data = binout_reading(target_position_file)
+			target_data = target_data['displacements']
 		else:
 			print("Could not recognize target position input file... Trying to read objects...")
 			target_data = pickle.load(open(target_position_file, "rb"))
@@ -128,7 +128,7 @@ def reconstruct(binout_file, tracking_nodes_file, keyfile, output_file, singlefr
 def main():
 	description = "Computes a RB-approximated reconstruction of a Finite Element model"
 	epilog = """example:
-	 # $ python3 reconstruct.py ../Excluded_01_SoftHandsModel/mor_Thums.k.binout0000 THUMS_Positioning/tracking_nodes.py  THUMS_Positioning/simplified_data.npy   ../02_initial_inputdeck/THUMS_V.k ./THUMS_V_recon.k2H
+	 # $ python reconstruct.py ./sample.binout ./tracking_nodes.binout ./input.key ./output.key -t ./tracking_points
 	 $ {0} Binout/sim.binout Tracking_Nodes/tn.py Target_Position/tn.npy  sim.key sim_reconstructed.key -b V_disp.pkl
 	 
 	 notes: - """.format("reconstruct.py")

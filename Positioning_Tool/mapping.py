@@ -11,7 +11,6 @@ from qd.cae.dyna import Binout
 from preprocessing import *
 import numpy as np 
 import re
-import queue
 import copy
 import sys
 

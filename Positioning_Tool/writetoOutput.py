@@ -22,7 +22,7 @@ def writetoOutput(keyfile, output_name, A_r, node_ids):
 	
 	node_ids   = iter(node_ids)
 	A_r        = iter(A_r[:,-1])
-	with open(keyfile, 'r', encoding='utf-8') as file_in:
+	with open(keyfile, 'r') as file_in:
 		bodyText = file_in.read()
 		start_nodes = bodyText.index(node_start)
 		end_nodes = re.search("\*[A-Z]+", bodyText[start_nodes+1:]).start() + start_nodes
@@ -43,7 +43,7 @@ def writetoOutput(keyfile, output_name, A_r, node_ids):
 				
 		bodyTextNew = bodyText_start + "\n".join(output_node_data) + bodyText_end
  
-	with open(output_name, 'w', encoding='utf-8') as file_out:
+	with open(output_name, 'w') as file_out:
 		file_out.write(bodyTextNew)	
 	
 
