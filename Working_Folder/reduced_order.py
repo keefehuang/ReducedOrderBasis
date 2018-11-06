@@ -17,7 +17,7 @@ def powern(n):
 # This function solves a least squares optimization problem.
 # The base problem is given as V_simplified * x_simplified = rhs_simplified
 def least_squares_approximation(V, V_simplified, rhs_simplified):
-	rhs_approx, res, rank, s = np.linalg.lstsq(V_simplified, rhs_simplified, rcond=None)
+	rhs_approx, res, rank, s = np.linalg.lstsq(V_simplified, rhs_simplified)
 	rhs_reconstructed = V.dot(rhs_approx)
 
 	return rhs_reconstructed
@@ -41,8 +41,11 @@ def least_squares_approximation_with_velocity(V, V_simplified, rhs_simplified, v
 # Performs a for loop over all snapshots in Binout data "A" and calls least_squares_approximation which runs the
 # least squares approximation for a single snapshot
 def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes=None, A=None, velocity_data=None, timestep=None):
+
 	error_reconstructed = None
 	snapshot_selection = range(nodes.shape[1])
+	A_reconstructed = np.zeros((V.shape[0], nodes.shape[1]))
+	error_reconstructed = np.zeros((A.shape[0], nodes.shape[1]))
 	V_simplified = V[node_selection, :]
 	if velocity_data is not None:
 		# velocity_simplified = velocity_data[node_selection, :]
@@ -54,7 +57,7 @@ def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes
 		reconstruction_title = "Reconstructing snapshots"
 
 	try:
-		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title=reconstruction_title, bar_char='█')
+		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title=reconstruction_title, bar_char='*')
 	except:
 		pass
 	for i, snapshot in enumerate(snapshot_selection):
@@ -68,17 +71,12 @@ def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes
 		else:
 			snapshot_reconstructed = least_squares_approximation(V, V_simplified, node_snapshot)
 		
-		if snapshot == 0:
-			A_reconstructed = snapshot_reconstructed
-		else:
-			A_reconstructed = np.column_stack((A_reconstructed,snapshot_reconstructed))
+			A_reconstructed[:,i] = snapshot_reconstructed
 
 		if isCalculateError:
 			error_reconstructed_snapshot = np.array(abs(snapshot_reconstructed[:A.shape[0]] - A[: , snapshot]))
-			if snapshot == 0:
-				error_reconstructed = error_reconstructed_snapshot
-			else:
-				error_reconstructed = np.column_stack((error_reconstructed,error_reconstructed_snapshot))
+			error_reconstructed[:,i] = error_reconstructed_snapshot
+			
 		try:
 			bar.update()
 		except:

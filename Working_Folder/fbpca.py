@@ -1707,6 +1707,7 @@ def pca(A, k=6, raw=False, n_iter=2, l=None):
             # Retain only the leftmost k columns of U, the uppermost
             # k rows of Va, and the first k entries of s.
             #
+            print(Q)
             return U[:, :k], s[:k], Va[:k, :]
 
         if m < n:
@@ -1765,7 +1766,7 @@ def pca(A, k=6, raw=False, n_iter=2, l=None):
             # Retain only the leftmost k columns of U, the uppermost
             # k rows of Va, and the first k entries of s.
             #
-            
+            print(Q)
             return U[:, :k], s[:k], Va[:k, :]
 
 def fp_rsvd_nondestructive(A, probability=0.9995, eps=1e-6, n_iter=2, truncate=0, l=None, random_type='Gaussian', random_seed = 0, norm_A0=None):
@@ -3798,3 +3799,16 @@ def set_matrix_mult(newmult):
     global mult
     mult = newmult
 
+
+def main():
+    pass
+
+if __name__ == '__main__':
+    print("Yes")
+    n = 10 
+    l = 15
+    full_matrix = np.random.uniform(low=-1.0, high=1.0, size=(n, l))
+    zeros = np.zeros((20,15))
+    zeros[0:20:2,:] = full_matrix
+
+    (V,S,U) = pca(zeros, 2)

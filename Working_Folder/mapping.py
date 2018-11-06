@@ -77,7 +77,7 @@ def vtk_mapping(full_data_state, input_vtk_file, mapping_directory, full_node_nu
 	
 	print("Mapping simulation nodes to vtk nodes")
 	try:
-		bar = pyprind.ProgBar(sorted_vtk.shape[0], monitor=True, title='Mapping Progress', bar_char='█')
+		bar = pyprind.ProgBar(sorted_vtk.shape[0], monitor=True, title='Mapping Progress', bar_char='*')
 	except:
 		pass
 	for i,node in enumerate(sorted_vtk):

@@ -7,16 +7,18 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 # Library imports
 import numpy as np
-# from scipy.linalg import svd
-from small_func import *
-from mapping import *
-from reduced_order import *
 import fbpca
 import importlib
-from preprocessing import *
-from writetoVtk import *
 import pickle
 import sys
+from small_func import *
+
+# Local files
+from mapping import *
+from reduced_order import *
+from preprocessing import *
+from writetoVtk import *
+
 
 
 timestep = 0.008
@@ -53,9 +55,11 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		simplified_velocity_data = None
 		print("Read succesfully")	
 
+	# simplified_displacement_data = simplified_displacement_data[:195,:]
+
 	# Modified to reduce time for higher resolution data
-	simplified_displacement_data = simplified_displacement_data[:,0::10]
-	simplified_time_data = simplified_time_data[0::10]
+	# simplified_displacement_data = simplified_displacement_data[:,0::10]
+	# simplified_time_data = simplified_time_data[0::10]
 
 	# Extracting tracking point ids and functions for weighting.
 	# Note that pkl files cannot store functions
@@ -102,7 +106,7 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		(V, s , Vt) = fbpca.pca(displacement_data, k=k , n_iter=n, raw=True)
 		# (V, s , Vt) = rsvd(displacement_data, k=k , n=n)
 		# U, s , Vt = svd(displacement_data, full_matrices=False)
-		V = U[:,:k]
+		# V = U[:,:k]
 		print("Storing calculated basis vectors as .pkl")
 		pickle.dump(V, open("basis_vectors.pkl", "wb"))
 	else:

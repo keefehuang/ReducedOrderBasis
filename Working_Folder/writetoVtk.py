@@ -40,7 +40,7 @@ def writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_name
 
 	# loop through all timesteps
 	try:
-		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title='Printing vtks', bar_char='█')
+		bar = pyprind.ProgBar(len(snapshot_selection), monitor=True, title='Printing vtks', bar_char='*')
 	except:
 		pass
 	for snapshot in snapshot_selection:
