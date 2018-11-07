@@ -25,7 +25,7 @@ def reconstruct(binout_file, tracking_nodes_file, keyfile, output_file, singlefr
 	
 	### Set the parameters for the SVD calculation
 	n = 5	
-	k = 2
+	k = 5
 	
 	if isinstance(basis_file, (list, tuple)):
 		basis_file = basis_file[0]
@@ -115,6 +115,7 @@ def reconstruct(binout_file, tracking_nodes_file, keyfile, output_file, singlefr
 	
 	### Xsection mapping averages the tracking_nodes nodes to create new nodes for SVD	
 	V, target_node_indices = append_tracking_point_rows(V, full_data_ids, tracking_node_ids, weights)
+
 	### Reconstruction of matrix based on SVD
 	A_r = reducedOrderApproximation(V, target_node_indices, nodes=target_data)
 	
