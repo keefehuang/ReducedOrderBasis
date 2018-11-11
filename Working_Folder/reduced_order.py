@@ -5,7 +5,7 @@ try:
 except:
 	pass
 
-scalingfactor = 0
+scalingfactor = 0.00
 
 time = 0.01
 def powern(n):
@@ -45,7 +45,8 @@ def reduced_order_approximation(V, node_selection, isCalculateError=False, nodes
 	error_reconstructed = None
 	snapshot_selection = range(nodes.shape[1])
 	A_reconstructed = np.zeros((V.shape[0], nodes.shape[1]))
-	error_reconstructed = np.zeros((A.shape[0], nodes.shape[1]))
+	if isCalculateError:
+		error_reconstructed = np.zeros((A.shape[0], nodes.shape[1]))
 	V_simplified = V[node_selection, :]
 	if velocity_data is not None:
 		# velocity_simplified = velocity_data[node_selection, :]

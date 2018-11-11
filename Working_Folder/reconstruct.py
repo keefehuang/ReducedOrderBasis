@@ -58,8 +58,8 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 	# simplified_displacement_data = simplified_displacement_data[:195,:]
 
 	# Modified to reduce time for higher resolution data
-	# simplified_displacement_data = simplified_displacement_data[:,0::10]
-	# simplified_time_data = simplified_time_data[0::10]
+	simplified_displacement_data = simplified_displacement_data[:,0::10]
+	simplified_time_data = simplified_time_data[0::10]
 
 	# Extracting tracking point ids and functions for weighting.
 	# Note that pkl files cannot store functions
@@ -108,7 +108,8 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		# U, s , Vt = svd(displacement_data, full_matrices=False)
 		# V = U[:,:k]
 		print("Storing calculated basis vectors as .pkl")
-		pickle.dump(V, open("basis_vectors.pkl", "wb"))
+		with open("basis_vectors.pkl", "wb") as f:
+			pickle.dump(V, f)
 	else:
 		# Assumes bases are already rearranged
 		print("Extracting reduced basis")	
@@ -166,10 +167,10 @@ def reconstruct(full_data_input_file, tracking_nodes_file, simplified_data_file,
 		A_r = np.concatenate((A_r, static_nodes))
 
 	# ### Output a norm of the error
-	# print(np.linalg.norm(np.mean(error_r, 1)))
+	print(np.linalg.norm(np.mean(error_r, 1)))
 
 	### Output the reconstructed data
-	writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_file, isCalculateError=isCalculateError, error_r=error_r)
+	# writetoVtk(A_r, full_node_num, input_vtk_file, output_vtk_file, mapping_file, isCalculateError=isCalculateError, error_r=error_r)
 	if isPrintInterpolated:
 		writetoVtk(disp_r, full_node_num, input_vtk_file, "./visualisation/out/Bumper_binout.vtk", mapping_file, isCalculateError=False, error_r=None)
 	print("Output Vtks printed")

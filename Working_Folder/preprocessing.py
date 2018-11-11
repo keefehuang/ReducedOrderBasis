@@ -22,6 +22,8 @@ except:
 	print("h5py library cannot be loaded, loading from a4db format is not supported in this python instance")
 	ish5py = False
 
+
+
 ## TODO: Extend to include velocity/rotational data! Also need to get time-data in a4db files
 def data_extraction_a4db(a4db_name, isBasis, isCalculateError, isVelocity):
 	if not ish5py:
